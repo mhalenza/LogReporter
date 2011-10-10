@@ -15,30 +15,37 @@ has '_fh' => (
     isa => 'ArrayRef[FileHandle]',
     required => 1,
     default => sub { [] },
+    clearer => '_fh_clear',
     handles => {
         _fh_push => 'push',
+        _fh_shift => 'shift',
     },
+);
+has '_active_fh' => (
+    is => 'rw',
+    isa => 'FileHandle',
 );
 
 override init => sub {
     my ($self) = @_;
-    #super();
     foreach my $file ( @{ $self->files } ){
         open my $FH, "<", $file or die "open($file): $!";
         $self->_fh_push($FH);
     }
-    
 };
 
 override get_line => sub {
     my ($self) = @_;
     #super();
-    return undef;
+    
 };
 
 override finalize => sub {
     my ($self) = @_;
-    #super();
+    foreach my $FH ( @{ $self->_fh } ){
+        close $FH;
+    }
+    $self->_fh_clear();
 };
 
 1;

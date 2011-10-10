@@ -1,4 +1,4 @@
-package LogReporter::Service::Crond;
+package LogReporter::Service::Named;
 use Moose;
 use namespace::autoclean;
 extends 'LogReporter::Service';

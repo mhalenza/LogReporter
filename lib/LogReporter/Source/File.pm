@@ -1,7 +1,8 @@
 package LogReporter::Source::File;
 use Moose;
-extends 'LogReporter::Source';
 use namespace::autoclean;
+
+extends 'LogReporter::Source';
 
 has 'files' => (
     is => 'ro',
@@ -12,18 +13,13 @@ has 'files' => (
 has '_fh' => (
     traits  => ['Array'],
     is => 'rw',
-    isa => 'ArrayRef[FileHandle]',
+    isa => 'ArrayRef[ FileHandle ]',
     required => 1,
     default => sub { [] },
     clearer => '_fh_clear',
     handles => {
         _fh_push => 'push',
-        _fh_shift => 'shift',
     },
-);
-has '_active_fh' => (
-    is => 'rw',
-    isa => 'FileHandle',
 );
 
 override init => sub {
@@ -42,8 +38,10 @@ override get_line => sub {
 
     foreach my $fh (@$fhs){
         $line = <$fh>;
-        chomp $line;
-        return $line if defined $line;
+        if (defined $line){
+            chomp $line;
+            return $line;
+        }
     }
     return undef;
 };

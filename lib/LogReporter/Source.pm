@@ -28,16 +28,22 @@ sub register_service {
     $self->_services->push($service);
 }
 
-sub init { }
-sub get_line { die "Not implemented!"; }
-sub finalize { }
+sub init {
+    my ($self) = @_;
+}
+sub get_line {
+    my ($self) = @_;
+    die "Not implemented!";
+}
+sub finalize {
+    my ($self) = @_;
+}
 
 sub run {
     my ($self) = @_;
     my $filters = $self->filters;
     my $services = $self->_services;
-
-  
+    
     LINE: while( my $line = $self->get_line() ){
         my $meta = {};
         say "L: $line";

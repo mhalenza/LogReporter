@@ -26,11 +26,11 @@ sub process_line {
 }
 
 sub finalize {
-    my ($self) = @_;
+#    my ($self) = @_;
 }
 
 sub get_output {
-    my ($self) = @_;
+#    my ($self) = @_;
     return "";
 }
 

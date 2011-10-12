@@ -34,6 +34,7 @@ foreach my $src_name (keys %$source_config){
     my $it = natatime 2, @{$src_config->{filters}};
     while( my ($name, $conf) = $it->() ){
         eval "use LogReporter::Filter::$name ()";
+        die $@ if $@;
         push @$filters, "LogReporter::Filter::$name"->new(
             %$conf
         );
@@ -55,9 +56,10 @@ foreach my $svc_name (keys %$service_config){
     my $filters = $svc_config->{filters};
     
     my $src_objs = [ map { $all_sources->{$_} } @$sources ];
-    
-    my $svc_obj = LogReporter::Service->new(
-        name => $svc_name,
+
+    eval "use LogReporter::Service::$svc_name ()";
+    die $@ if $@;
+    my $svc_obj = "LogReporter::Service::$svc_name"->new(
         filters => $filters,
         sources => $src_objs,
     );

@@ -3,6 +3,7 @@ use strict;
 use warnings;
 use feature ':5.10';
 
+
 use Carp;
 use Config::General;
 use Data::Dumper; #$Data::Dumper::Indent = 2;
@@ -11,13 +12,7 @@ use List::MoreUtils qw/apply natatime/;
 use FindBin;
 use lib "$FindBin::Bin/../lib";
 
-use LogReporter::Filter;
-use LogReporter::Filter::Date;
-use LogReporter::Filter::DateRange;
-use LogReporter::Filter::Syslog;
-use LogReporter::Source;
-use LogReporter::Source::File;
-use LogReporter::Service;
+use LogReporter;
 
 my $ConfigDir = "/usr/local/logreporter/conf/";
 my $PerlVersion = "$^X";
@@ -26,7 +21,7 @@ my $PerlVersion = "$^X";
 my $all_config = read_config($ConfigDir . 'logreporter.conf');
 my $source_config = delete $all_config->{sources};
 my $service_config = delete $all_config->{services};
-print Dumper($all_config,$source_config,$service_config);
+say Dumper($all_config,$source_config,$service_config);
 
 ## Process config
 my ($all_sources, $all_services) = ({},{});
@@ -38,11 +33,13 @@ foreach my $src_name (keys %$source_config){
     
     my $it = natatime 2, @{$src_config->{filters}};
     while( my ($name, $conf) = $it->() ){
+        eval "use LogReporter::Filter::$name ()";
         push @$filters, "LogReporter::Filter::$name"->new(
             %$conf
         );
     }
-    
+
+    say Dumper($files,$filters);
     my $src_obj = LogReporter::Source::File->new(
         name => $src_name,
         files => $files,
@@ -97,3 +94,4 @@ sub read_config {
     do $name;
     return $config;
 }
+

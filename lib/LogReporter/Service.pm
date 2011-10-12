@@ -4,7 +4,7 @@ use namespace::autoclean;
 
 has 'sources' => (
     is       => 'rw',
-    isa      => 'ArrayRef[ LogReporter::Source]',
+    isa      => 'ArrayRef[LogReporter::Source]',
     required => 1,
 );
 

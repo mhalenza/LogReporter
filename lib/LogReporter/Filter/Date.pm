@@ -4,6 +4,8 @@ use namespace::autoclean;
 use DateTime;
 use DateTime::Format::Builder;
 
+extends 'LogReporter::Filter';
+
 has 'format' => (
     is => 'ro',
     isa => 'Str',
@@ -44,11 +46,11 @@ sub filter {
         $$line =~ s/$finder//;
         my $dt = $self->_parser->parse_datetime($found);
         $meta->{timestamp} = $dt;
+        return 1;
     } else {
         return 0;
     }
 }
 
 
-with 'LogReporter::Filter';
 1;

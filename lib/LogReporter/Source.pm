@@ -1,6 +1,7 @@
 package LogReporter::Source;
 use Moose;
 use namespace::autoclean;
+use feature ':5.10';
 
 has 'name' => (
     is => 'ro',
@@ -10,13 +11,13 @@ has 'name' => (
 
 has 'filters' => (
     is => 'ro',
-    isa => 'ArrayRef[LogReporter::Filter]',
+    isa => 'ArrayRef[ LogReporter::Filter ]',
     required => 1,
 );
 
 has '_services' => (
     is => 'rw',
-    isa => 'ArrayRef[LogReporter::Service]',
+    isa => 'ArrayRef[ LogReporter::Service ]',
     required => 1,
     default => sub { [] },
 );
@@ -28,21 +29,25 @@ sub register_service {
 }
 
 sub init { }
-sub get_line { }
+sub get_line { die "Not implemented!"; }
 sub finalize { }
 
 sub run {
     my ($self) = @_;
     my $filters = $self->filters;
     my $services = $self->_services;
-    
+
+  
     LINE: while( my $line = $self->get_line() ){
         my $meta = {};
+        say "L: $line";
         foreach my $filter (@$filters){
+            say " F: $filter";
             unless ( $filter->filter(\$line,$meta) ){
                 next LINE;
             }
         }
+        say " L: $line\n";
         foreach my $service (@$services){
             $service->process_line( \$line, $meta );
         }

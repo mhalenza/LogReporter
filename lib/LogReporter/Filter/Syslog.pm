@@ -2,22 +2,28 @@ package LogReporter::Filter::Syslog;
 use Moose;
 use namespace::autoclean;
 
-has 'facility' => (
+extends 'LogReporter::Filter';
+
+
+has 'format' => (
     is => 'ro',
     isa => 'Str',
-);
-
-has 'level' => (
-    is => 'ro',
-    isa => 'Int',
+    required => 1,
 );
 
 sub filter {
     my ($self, $line, $meta) = @_;
-    #TODO: implement
+    my $finder = $self->format();
+    if ( $$line =~ $finder ){
+        my ($facility, $level) = @+{'f','l'};
+        $$line =~ s/$finder//;
+        $meta->{syslog} = {
+            facility => $facility,
+            level => $level,
+        };
+    }
     return 1;
 }
 
 
-with 'LogReporter::Filter';
 1;

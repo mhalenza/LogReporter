@@ -28,6 +28,7 @@ has '_active_fh' => (
 
 override init => sub {
     my ($self) = @_;
+    super();
     foreach my $file ( @{ $self->files } ){
         open my $FH, "<", $file or die "open($file): $!";
         $self->_fh_push($FH);
@@ -36,12 +37,20 @@ override init => sub {
 
 override get_line => sub {
     my ($self) = @_;
-    #super();
-    
+    my $fhs = $self->_fh;
+    my $line;
+
+    foreach my $fh (@$fhs){
+        $line = <$fh>;
+        chomp $line;
+        return $line if defined $line;
+    }
+    return undef;
 };
 
 override finalize => sub {
     my ($self) = @_;
+    super();
     foreach my $FH ( @{ $self->_fh } ){
         close $FH;
     }

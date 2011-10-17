@@ -1,14 +1,14 @@
-{{ FOREACH action IN d.keys -}}
-{{ FOREACH interface IN d.$action.keys -}}
-{{ action }} $n packets on {{ interface }}
-{{ FOREACH fromip IN d.$action.$interface.keys -}}
-  From {{ fromip }}  - $n
-{{ FOREACH toip IN d.$action.$interface.$fromip.keys -}}
-    To {{ toip }}  - $n
-{{ FOREACH toport IN d.$action.$interface.$fromip.$toip.keys -}}
-{{ FOREACH proto IN d.$action.$interface.$fromip.$toip.$toport.keys -}}
-      Service ({{ toport }}/{{ proto }})       $totpackets
-{{ FOREACH chain_info IN d.$action.$interface.$fromip.$toip.$toport.$proto.keys -}}
+{{ FOREACH action IN d.keys -}}{{ NEXT IF action == '__' -}}
+{{ FOREACH interface IN d.$action.keys -}}{{ NEXT IF interface == '__' -}}
+{{ action }} {{ d.$action.$interface.__ }} packets on {{ interface }}
+{{ FOREACH fromip IN d.$action.$interface.keys -}}{{ NEXT IF fromip == '__' -}}
+  From {{ fromip }}  - {{ d.$action.$interface.$fromip.__ }}
+{{ FOREACH toip IN d.$action.$interface.$fromip.keys -}}{{ NEXT IF toip == '__' -}}
+    To {{ toip }}  - {{ d.$action.$interface.$fromip.$toip__ }}
+{{ FOREACH toport IN d.$action.$interface.$fromip.$toip.keys -}}{{ NEXT IF toport == '__' -}}
+{{ FOREACH proto IN d.$action.$interface.$fromip.$toip.$toport.keys -}}{{ NEXT IF proto == '__' -}}
+      Service ({{ toport }}/{{ proto }})       {{ d.$action.$interface.$fromip.$toip.$toport.$proto.__ }}
+{{ FOREACH chain_info IN d.$action.$interface.$fromip.$toip.$toport.$proto.keys -}}{{ NEXT IF chain_info == '__' -}}
         {{ chain_info }} - {{ d.$action.$interface.$fromip.$toip.$toport.$proto.$chain_info }}
 {{ END -}}
 {{ END -}}

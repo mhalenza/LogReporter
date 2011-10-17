@@ -61,12 +61,12 @@ no warnings 'uninitialized';
         my $actionType = _lookupAction($prefix);
         #$prefix = "(${prefix}) " if ($prefix ne "");
         $self->data->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{$prefix}++;
-        $self->data->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{__}++;
-        $self->data->{$actionType}{$interface}{$fromip}{$toip}{$toport}{__}++;
-        $self->data->{$actionType}{$interface}{$fromip}{$toip}{__}++;
-        $self->data->{$actionType}{$interface}{$fromip}{__}++;
-        $self->data->{$actionType}{$interface}{__}++;
-        $self->data->{$actionType}{__}++;
+        $self->data->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{_x}++;
+        $self->data->{$actionType}{$interface}{$fromip}{$toip}{$toport}{_x}++;
+        $self->data->{$actionType}{$interface}{$fromip}{$toip}{_x}++;
+        $self->data->{$actionType}{$interface}{$fromip}{_x}++;
+        $self->data->{$actionType}{$interface}{_x}++;
+        $self->data->{$actionType}{_x}++;
 #        say "G: $actionType $interface $fromip $toip $toport $proto '$prefix'";
     }
 };

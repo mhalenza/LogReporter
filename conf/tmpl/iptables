@@ -1,1 +1,19 @@
-{{ USE Dumper }}{{ Dumper.dump(d) }}
+{{ FOREACH action IN d.keys -}}{{ NEXT IF action == 'XXX' -}}
+{{ FOREACH interface IN d.$action.keys -}}{{ NEXT IF interface == 'XXX' -}}
+{{ action }} {{ d.$action.$interface.XXX }} packets on {{ interface }}
+{{ FOREACH fromip IN d.$action.$interface.keys -}}{{ NEXT IF fromip == 'XXX' -}}
+  From {{ fromip }}  - {{ d.$action.$interface.$fromip.XXX }}
+{{ FOREACH toip IN d.$action.$interface.$fromip.keys -}}{{ NEXT IF toip == 'XXX' -}}
+    To {{ toip }}  - {{ d.$action.$interface.$fromip.$toip.XXX }}
+{{ FOREACH toport IN d.$action.$interface.$fromip.$toip.keys -}}{{ NEXT IF toport == 'XXX' -}}
+{{ FOREACH proto IN d.$action.$interface.$fromip.$toip.$toport.keys -}}{{ NEXT IF proto == 'XXX' -}}
+      Service {{ d.$action.$interface.$fromip.$toip.$toport.$proto.XXX_service }} ({{ proto }}/{{ toport }})  - {{ d.$action.$interface.$fromip.$toip.$toport.$proto.XXX }}
+{{ FOREACH chain_info IN d.$action.$interface.$fromip.$toip.$toport.$proto.keys -}}{{ NEXT IF chain_info == 'XXX' -}}
+        {{ chain_info }} - {{ d.$action.$interface.$fromip.$toip.$toport.$proto.$chain_info }}
+{{ END -}}
+{{ END -}}
+{{ END -}}
+{{ END -}}
+{{ END -}}
+{{ END -}}
+{{ END -}}

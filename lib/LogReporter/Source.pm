@@ -55,7 +55,7 @@ sub run {
         }
         say " L: $line\n";
         foreach my $service (@$services){
-            $service->process_line( \$line, $meta );
+            $service->process_line( $line, $meta );
         }
     }
 }

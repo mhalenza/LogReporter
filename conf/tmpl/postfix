@@ -1,26 +1,24 @@
-{{ USE Dumper }}{{ Dumper.dump( data ) }}
-{{ IF 0 }}
-{{ IF data.NoFreeSpace > 0 }}
+{{ IF NoFreeSpace > 0 }}
 WARNING!!!
-Insufficient system storage error {{ data.NoFreeSpace }} Time(s)
+Insufficient system storage error {{ NoFreeSpace }} Time(s)
 {{ END }}
-{{ IF data.MsgsQueue > 0 }}
+{{ IF MsgsQueue > 0 }}
 STATISTICS
 ----------
 $BytesTransferred bytes transferred
 $MsgsQueue messages accepted for queue
 {{ END }}
 
-{{ IF data.FourHourReturns > 0 }}
-{{ data.FourHourReturns }} messages returned after 4 hours
+{{ IF FourHourReturns > 0 }}
+{{ FourHourReturns }} messages returned after 4 hours
 {{ END }}
 
-{{ IF data.Deliverable > 0 }}
-{{ data.Deliverable }} messages accepted as deliverable
+{{ IF Deliverable > 0 }}
+{{ Deliverable }} messages accepted as deliverable
 {{ END }}
 
-{{ IF data.Undeliverable > 0 }}
-{{ data.Undeliverable }} messages rejected as undeliverable
+{{ IF Undeliverable > 0 }}
+{{ Undeliverable }} messages rejected as undeliverable
 {{ END }}
 
 if ($ReturnedToSender >0) {
@@ -783,4 +781,3 @@ if ($#OtherList >= 0) {
    print "\n\n**Unmatched Entries**\n\n";
    print @OtherList;
 }
-{{ END }}

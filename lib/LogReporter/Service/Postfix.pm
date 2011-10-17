@@ -4,22 +4,8 @@ use namespace::autoclean;
 extends 'LogReporter::Service';
 no warnings 'misc';
 
-has 'template_name' => (
-    is => 'ro',
-    isa => 'Str',
-    required => 1,
-    default => sub { 'postfix'; },
-);
-with 'LogReporter::Templated';
-
 my $re_DSN    =  '(?:\d{3}(?: \d\.\d\.\d)?)';
 my $re_MsgID  =  '[a-zA-Z\d]+';
-
-has data => (
-    is => 'rw',
-    isa => 'HashRef',
-    default => sub { {OtherList => []}; },
-);
 
 override process_line => sub {
     my ($self, $line, $meta) = @_;
@@ -261,12 +247,6 @@ override process_line => sub {
     } else {
         push @{ $data->{OtherList} },$line;
     }
-};
-
-override 'get_output' => sub {
-    my ($self) = @_;
-    my $output = $self->process({ data => $self->data});
-    return $output;
 };
 
 1;

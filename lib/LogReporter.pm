@@ -131,12 +131,24 @@ sub _collect_output {
         POST_CHOMP => 1,
     );
     
+    my $svc_tt2 = Template->new(
+        INCLUDE_PATH => [
+            "$FindBin::Bin/../conf/tmpl/",
+        ],
+        START_TAG => '{{',
+        END_TAG => '}}',
+        POST_CHOMP => 1,
+        PREPROCESS => 'HEADER',
+        POSTPROCESS => 'FOOTER',
+    );
+    
     say "Collecting output";
     my $all_output;
     $tt2->process('MAIN_HEADER',{ conf => $self->config },\$all_output);
     foreach my $service (values %{$self->_all_services}){
         $tt2->process('HEADER',{ svc => $service->name },\$all_output);
         $all_output .= $service->get_output();
+        $svc_tt2->process($service->name, $service->get_data, \$all_output);
         $tt2->process('FOOTER',{ svc => $service->name },\$all_output);
     }
     $tt2->process('MAIN_FOOTER',{ conf => $self->config },\$all_output);

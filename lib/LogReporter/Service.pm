@@ -20,6 +20,12 @@ has 'filters' => (
     required => 1,
 );
 
+has data => (
+    is => 'rw',
+    isa => 'HashRef',
+    default => sub { {OtherList => []}; },
+);
+
 sub init {
     my ($self) = @_;
     foreach my $source (@{ $self->sources }){
@@ -36,9 +42,10 @@ sub finalize {
     my ($self) = @_;
 }
 
-sub get_output {
+sub get_data {
     my ($self) = @_;
-    return "";
+    return $self->data;
+};
 }
 
 

@@ -1,0 +1,18 @@
+{{ FOREACH action IN keys data }}
+{{ FOREACH interface IN keys data.$action }}
+{{ action }} $n packets on interface {{ interface }}
+{{ FOREACH fromip IN keys data.$action.$interface }}
+    From {{ fromip }}       $totpackets
+{{ FOREACH toip IN keys data.$action.$interface }}
+        To   {{ toip }}         $totpackets
+{{ FOREACH toport IN keys data.$action.$interface.$toip }}
+{{ FOREACH proto IN keys data.$action.$interface.$toip.$toport }}
+            Service ({{ toport }}/{{ proto }})       $totpackets
+{{ FOREACH chain_info IN keys data.$action.$interface.$toip.$toport.$proto }}
+                $chain_info - {{ data.$action.$interface.$toip.$toport.$proto.$chain_info }}
+{{ END }}
+{{ END }}
+{{ END }}
+{{ END }}
+{{ END }}
+{{ END }}

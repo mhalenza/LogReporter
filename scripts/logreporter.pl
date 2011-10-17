@@ -7,6 +7,8 @@ use Carp;
 use Config::General;
 use Data::Dumper; #$Data::Dumper::Indent = 2;
 
+our $START_TIME = time();
+
 
 use FindBin;
 use lib "$FindBin::Bin/../lib";
@@ -19,6 +21,7 @@ my $PerlVersion = "$^X";
 
 ### Load config
 my $all_config = read_config($ConfigDir . 'logreporter.conf');
+$all_config->{START_TIME} = time();
 #say Dumper($all_config);
 
 LogReporter->new(

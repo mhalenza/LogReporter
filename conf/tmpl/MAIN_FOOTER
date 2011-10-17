@@ -1,4 +1,5 @@
-{{ Use Date }}
+{{ USE date }}
 ####################################################################
-       Processing Finished: {{ date.format(date.now,'%Y-%b-%d %H:%M:%s') }}
+      Processing Finished: {{ date.format(date.now,'%Y/%m/%d %H:%M:%S') }}
+
 ####################################################################

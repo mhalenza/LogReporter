@@ -1,9 +1,10 @@
 package LogReporter::Service::Iptables;
+use feature ':5.10';
 use Moose;
 use namespace::autoclean;
 extends 'LogReporter::Service';
 
-my $iptables_fmt = /^
+my $iptables_fmt = qr/^
     (?<prefix>.*?)
     \s*
     IN=(?<ifin>[\w\.]*)
@@ -18,8 +19,9 @@ my $iptables_fmt = /^
     (?<rest>.*)
 /x;
 
-sub _lookup_action {
+sub _lookupAction {
     my ($prefix) = @_;
+    no warnings 'uninitialized';
     given ($prefix){
         when (/reject/i)    { return 'Rejected'; }
         when (/drop/i)      { return 'Dropped'; }
@@ -32,9 +34,9 @@ sub _lookup_action {
 
 override process_line => sub {
     my ($self, $line, $meta) = @_;
-    
+no warnings 'uninitialized';  
     if ( $line =~ $iptables_fmt ) {
-        my ($prefix,$ifin,$ifout,$fromip,$toip,$rest) = @+{'prefix','ifin','ifout','fromip','toip','rest'};
+        my ($prefix,$ifin,$ifout,$fromip,$toip,$proto,$rest) = @+{'prefix','ifin','ifout','fromip','toip','proto','rest'};
         my $interface;
         
         # determine the dominant interface
@@ -48,11 +50,18 @@ override process_line => sub {
             $ifin = "none";
         }
         
-        my $actionType = lookupAction($prefix);
+        # get a destination port number  (or icmp type) if there is one
+        my $toport;
+        unless ( ($toport) = ( $rest =~ /TYPE=(\w+)/ ) ) {
+            unless ( ($toport) = ( $rest =~ /DPT=(\w+)/ ) ) {
+                $toport = 0;
+            }
+        }
         
-        $prefix = "(${prefix}) " if ($prefix ne "");
-        
-        $self->data->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{$chain_info}++;
+        my $actionType = _lookupAction($prefix);
+        #$prefix = "(${prefix}) " if ($prefix ne "");
+        $self->data->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{$prefix}++;
+#        say "G: $actionType $interface $fromip $toip $toport $proto '$prefix'";
     }
 };
 

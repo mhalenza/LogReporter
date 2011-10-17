@@ -12,6 +12,7 @@ use LogReporter::Filter::DateRange;
 use LogReporter::Service;
 use DateTime;
 use DateTime::Span;
+use Template;
 
 use List::MoreUtils qw/apply natatime/;
 use Data::Dumper; $Data::Dumper::Indent = 1;
@@ -136,22 +137,25 @@ sub _collect_output {
         ],
         START_TAG => '{{',
         END_TAG => '}}',
-        POST_CHOMP => 1,
         PREPROCESS => 'HEADER',
         POSTPROCESS => 'FOOTER',
+        STRICT => 1,
     );
     
     say "Collecting output";
     my $all_output;
-    $tt2->process('MAIN_HEADER',{ conf => $self->config },\$all_output);
+    $tt2->process('MAIN_HEADER',{ conf => $self->config },\$all_output)
+      or warn "MAIN_HEADER process: ".$tt2->error();
     foreach my $service (values %{$self->_all_services}){
-        $tt2->process('HEADER',{ svc => $service->name },\$all_output);
-        $all_output .= $service->get_output();
-        $svc_tt2->process($service->name, $service->get_data, \$all_output);
-        $tt2->process('FOOTER',{ svc => $service->name },\$all_output);
+        $tt2->process('HEADER',{ svc => $service->name },\$all_output)
+          or warn "HEADER process: ".$tt2->error();
+        $svc_tt2->process(lc($service->name), { d => $service->get_data }, \$all_output)
+          or warn lc($service->name) . " " . $svc_tt2->error();
+        $tt2->process('FOOTER',{ svc => $service->name },\$all_output)
+          or warn "FOOTER process: " . $tt2->error();
     }
-    $tt2->process('MAIN_FOOTER',{ conf => $self->config },\$all_output);
-    
+    $tt2->process('MAIN_FOOTER',{ conf => $self->config },\$all_output)
+      or warn "MAIN_FOOTER process: ". $tt2->error();
     print "FINAL OUTPUT:\n--------------------------------------------\n";
     print $all_output;
     print "--------------------------------------------\n";

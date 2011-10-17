@@ -39,7 +39,6 @@ sub finalize {
 sub get_data {
     my ($self) = @_;
     return $self->data;
-};
 }
 
 

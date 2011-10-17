@@ -140,7 +140,6 @@ sub _collect_output {
         PREPROCESS => 'HEADER',
         POSTPROCESS => 'FOOTER',
         STRICT => 1,
-        PRIVATE => 0,
     );
     
     say "Collecting output";

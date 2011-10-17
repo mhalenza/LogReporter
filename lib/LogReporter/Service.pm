@@ -14,16 +14,10 @@ has 'sources' => (
     required => 1,
 );
 
-has 'filters' => (
-    is => 'rw',
-    isa => 'ArrayRef[ LogReporter::Filter ]',
-    required => 1,
-);
-
-has data => (
+has 'data' => (
     is => 'rw',
     isa => 'HashRef',
-    default => sub { {OtherList => []}; },
+    default => sub { {}; },
 );
 
 sub init {

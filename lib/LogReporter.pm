@@ -105,7 +105,6 @@ sub _setup_services {
         $self->_load_service($svc_name);
         my $svc_obj = "LogReporter::Service::$svc_name"->new(
             name => $svc_name,
-            filters => $filters,
             sources => $src_objs,
         );
         

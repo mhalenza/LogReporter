@@ -68,7 +68,7 @@ sub _setup_sources {
         my $files = $src_config->{files};
         my $filters = [];
         
-        my $it = natatime 2, @{$src_config->{filters}};
+        my $it = natatime 2, @{$src_config->{filters} || []};
         while( my ($name, $conf) = $it->() ){
             $self->_load_filter($name);
             push @$filters, "LogReporter::Filter::$name"->new(
@@ -103,10 +103,20 @@ sub _setup_services {
         
         my $src_objs = [ map { $self->_all_sources->{$_} } @$sources ];
         
+        my $filters = [];
+        my $it = natatime 2, @{$svc_config->{filters} || []};
+        while( my ($name, $conf) = $it->() ){
+            $self->_load_filter($name);
+            push @$filters, "LogReporter::Filter::$name"->new(
+                %$conf,
+            );
+        }
+        
         $self->_load_service($svc_name);
         my $svc_obj = "LogReporter::Service::$svc_name"->new(
             name => $svc_name,
             sources => $src_objs,
+            filters => $filters,
         );
         
         $self->_all_services->{$svc_name} = $svc_obj;

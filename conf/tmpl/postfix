@@ -1,12 +1,12 @@
-{{ IF NoFreeSpace > 0 }}
+{{ IF d.NoFreeSpace > 0 }}
 WARNING!!!
-Insufficient system storage error {{ NoFreeSpace }} Time(s)
+Insufficient system storage error {{ d.NoFreeSpace }} Time(s)
 {{ END }}
-{{ IF MsgsQueue > 0 }}
+{{ IF d.MsgsQueue > 0 }}
 STATISTICS
 ----------
-$BytesTransferred bytes transferred
-$MsgsQueue messages accepted for queue
+{{ d.BytesTransferred }} bytes transferred
+{{ d.MsgsQueue }} messages accepted for queue
 {{ END }}
 
 {{ IF FourHourReturns > 0 }}

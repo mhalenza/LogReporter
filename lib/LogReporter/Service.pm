@@ -9,7 +9,7 @@ has 'name' => (
 );
 
 has 'sources' => (
-    is => 'rw',
+    is => 'ro',
     isa => 'ArrayRef[ LogReporter::Source ]',
     required => 1,
 );
@@ -18,6 +18,12 @@ has 'data' => (
     is => 'rw',
     isa => 'HashRef',
     default => sub { {}; },
+);
+
+has 'filters' => (
+    is => 'ro',
+    isa => 'ArrayRef[ LogReporter::Filter ]',
+    required => 1,
 );
 
 sub init {

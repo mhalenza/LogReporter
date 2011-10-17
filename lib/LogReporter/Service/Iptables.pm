@@ -32,6 +32,16 @@ sub _lookupAction {
     }
 }
 
+sub _lookupService {
+    my ($port, $proto) = @_;
+    return getservbyport($port, $proto) || $port;
+}
+
+sub _lookupProtocol {
+    my ($proto) = @_;
+    return getprotobynumber($proto) || $proto;
+}
+
 override process_line => sub {
     my ($self, $line, $meta) = @_;
 no warnings 'uninitialized';  
@@ -62,6 +72,7 @@ no warnings 'uninitialized';
         #$prefix = "(${prefix}) " if ($prefix ne "");
         $self->data->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{$prefix}++;
         $self->data->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{XXX}++;
+        $self->data->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{XXX_service} //= (getservbyname($toport,$proto))[0];
         $self->data->{$actionType}{$interface}{$fromip}{$toip}{$toport}{XXX}++;
         $self->data->{$actionType}{$interface}{$fromip}{$toip}{XXX}++;
         $self->data->{$actionType}{$interface}{$fromip}{XXX}++;

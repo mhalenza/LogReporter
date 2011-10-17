@@ -13,6 +13,10 @@ has 'filters' => (
     is => 'ro',
     isa => 'ArrayRef[ LogReporter::Filter ]',
     required => 1,
+    traits => ['Array'],
+    handles => {
+        filters_push => 'push',
+    },
 );
 
 has '_services' => (
@@ -20,12 +24,16 @@ has '_services' => (
     isa => 'ArrayRef[ LogReporter::Service ]',
     required => 1,
     default => sub { [] },
+    traits => ['Array'],
+    handles => {
+        _services_push => 'push',
+    },
 );
 
 
 sub register_service {
     my ($self, $service) = @_;
-    $self->_services->push($service);
+    $self->_services_push($service);
 }
 
 sub init {
@@ -46,14 +54,14 @@ sub run {
     
     LINE: while( my $line = $self->get_line() ){
         my $meta = {};
-        say "L: $line";
+#        say "L: $line";
         foreach my $filter (@$filters){
-            say " F: $filter";
+#            say " F: $filter";
             unless ( $filter->filter(\$line,$meta) ){
                 next LINE;
             }
         }
-        say " L: $line\n";
+#        say " L: $line\n";
         foreach my $service (@$services){
             $service->process_line( $line, $meta );
         }

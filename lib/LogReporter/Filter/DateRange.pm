@@ -15,7 +15,7 @@ has 'param' => (
     is => 'ro',
     isa => 'Str',
     required => 1,
-    default => sub { 'dt' },
+    default => sub { 'timestamp' },
 );
 
 sub filter {

@@ -1,6 +1,7 @@
 package LogReporter::Source::File;
 use Moose;
 use namespace::autoclean;
+use File::Glob qw/bsd_glob/;
 
 extends 'LogReporter::Source';
 
@@ -25,9 +26,21 @@ has '_fh' => (
 override init => sub {
     my ($self) = @_;
     super();
+    my @files = ();
     foreach my $file ( @{ $self->files } ){
-        open my $FH, "<", $file or die "open($file): $!";
-        $self->_fh_push($FH);
+        if ($file =~ /\*/){
+            push @files, bsd_glob($file);
+        } else {
+            push @files, $file;
+        }
+    }
+    foreach my $file ( @files ){
+        eval {
+            open my $FH, "<", $file or die "open($file): $!";
+            print "  Opened $file\n";
+            $self->_fh_push($FH);
+        };
+        warn "  Failed to open $file:  $@" if $@;
     }
 };
 

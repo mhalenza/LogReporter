@@ -18,7 +18,7 @@ sub filter {
     my $finder = $self->format();
     if ( $$line =~ $finder ){
         my $found = $1;
-        print "   F: '$found'\n";
+#        print "   F: '$found'\n";
         $$line =~ s/$finder//;
         my $dt = DateTime::Format::ISO8601->parse_datetime( $found );
         $meta->{timestamp} = $dt;

@@ -2,6 +2,7 @@ package LogReporter::Service::Postfix;
 use Moose;
 use namespace::autoclean;
 extends 'LogReporter::Service';
+no warnings 'misc';
 
 has 'template_name' => (
     is => 'ro',
@@ -264,7 +265,7 @@ override process_line => sub {
 
 override 'get_output' => sub {
     my ($self) = @_;
-    my $output = $self->process($data
+    my $output = $self->process({ data => $self->data});
     return $output;
 };
 

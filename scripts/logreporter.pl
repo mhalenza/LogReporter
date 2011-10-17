@@ -19,7 +19,7 @@ my $PerlVersion = "$^X";
 
 ### Load config
 my $all_config = read_config($ConfigDir . 'logreporter.conf');
-say Dumper($all_config);
+#say Dumper($all_config);
 
 LogReporter->new(
     config => $all_config,

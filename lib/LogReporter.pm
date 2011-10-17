@@ -70,7 +70,7 @@ sub _setup_sources {
             );
         }
         
-        say Dumper($files,$filters);
+#        say Dumper($files,$filters);
         my $src_obj = LogReporter::Source::File->new(
             name => $src_name,
             files => $files,

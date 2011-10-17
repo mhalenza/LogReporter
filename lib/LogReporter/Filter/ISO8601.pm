@@ -5,6 +5,7 @@ use DateTime;
 use DateTime::Format::ISO8601;
 
 extends 'LogReporter::Filter';
+with 'LogReporter::Filter::Date';
 
 has 'format' => (
     is => 'ro',

@@ -1,5 +1,5 @@
 package LogReporter;
-use Moose;
+use MooseX::Singleton;
 use namespace::autoclean;
 use feature ':5.10';
 
@@ -7,6 +7,8 @@ use LogReporter::Source;
 use LogReporter::Source::File;
 use LogReporter::Filter;
 use LogReporter::Service;
+use DateTime;
+use DateTime::Span;
 
 use List::MoreUtils qw/apply natatime/;
 use Data::Dumper; $Data::Dumper::Indent = 1;
@@ -66,7 +68,7 @@ sub _setup_sources {
         while( my ($name, $conf) = $it->() ){
             $self->_load_filter($name);
             push @$filters, "LogReporter::Filter::$name"->new(
-                %$conf
+                %$conf,
             );
         }
         
@@ -117,11 +119,24 @@ sub _load_service {
 sub _collect_output {
     my ($self) = @_;
     
+    my $tt2 = Template->new(
+        INCLUDE_PATH => [
+            "$FindBin::Bin/../conf/tmpl/",
+        ],
+        START_TAG => '{{',
+        END_TAG => '}}',
+        POST_CHOMP => 1,
+    );
+    
     say "Collecting output";
-    my $all_output = "";
+    my $all_output;
+    $tt2->process('MAIN_HEADER',{ conf => $self->config },\$all_output);
     foreach my $service (values %{$self->_all_services}){
+        $tt2->process('HEADER',{ svc => $service->name },\$all_output);
         $all_output .= $service->get_output();
+        $tt2->process('FOOTER',{ svc => $service->name },\$all_output);
     }
+    $tt2->process('MAIN_FOOTER',{ conf => $self->config },\$all_output);
     
     print "FINAL OUTPUT:\n--------------------------------------------\n";
     print $all_output;

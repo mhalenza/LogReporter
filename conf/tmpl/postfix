@@ -1,2 +1,786 @@
-[% USE Dumper %]
-[% Dumper.dump( data ) %]
+{{ Use Dumper }}{{ Dumper.dump( data ) }}
+{{ IF 0 }}
+{{ IF data.NoFreeSpace > 0 }}
+WARNING!!!
+Insufficient system storage error {{ data.NoFreeSpace }} Time(s)
+{{ END }}
+{{ IF data.MsgsQueue > 0 }}
+STATISTICS
+----------
+$BytesTransferred bytes transferred
+$MsgsQueue messages accepted for queue
+{{ END }}
+
+{{ IF data.FourHourReturns > 0 }}
+{{ data.FourHourReturns }} messages returned after 4 hours
+{{ END }}
+
+{{ IF data.Deliverable > 0 }}
+{{ data.Deliverable }} messages accepted as deliverable
+{{ END }}
+
+{{ IF data.Undeliverable > 0 }}
+{{ data.Undeliverable }} messages rejected as undeliverable
+{{ END }}
+
+if ($ReturnedToSender >0) {
+   print "\n$ReturnedToSender messages expired and returned to sender";
+}
+
+if ($ResentMessages > 0) {
+   print "\n$ResentMessages resent messages";
+}
+
+if ($RemovedFromQueue > 0) {
+   print "\n$RemovedFromQueue messages removed from queue";
+}
+
+if ($QueueSizeExceeded > 0) {
+   print "\n$QueueSizeExceeded messages exceeded queue or message file size limit and removed";
+}
+
+if ($TableChanged > 0) {
+   print "\n$TableChanged exited after table change detection";
+}
+
+if ($UnsupportedFamily > 0) {
+   print "\nUnknown address family $UnsupportedFamily Time(s)\n";
+}
+
+#DETAILS
+if ($MsgsQueue > 0) {
+   print "\n\nDETAILS\n";
+   print "_______\n";
+}
+
+if (keys %ConfigError or keys %Databases) {
+   print "\n\nFATAL!!!\n";
+   print "Configuration Errors:\n";
+   foreach $Option (sort {$a cmp $b} keys %ConfigError) {
+      print "   Option: $Option\n";
+      foreach $Reason (sort {$a cmp $b} keys %{$ConfigError{$Option}} ) {
+         print "      $Reason: $ConfigError{$Option}{$Reason} Time(s)\n";
+      }
+   }
+   foreach $db (sort {$a cmp $b} keys %Databases) {
+      print "   Database: $db\n";
+      foreach $Reason (sort {$a cmp $b} keys %{$Databases{$db}} ) {
+         print "      $Reason: $Databases{$db}{$Reason} Time(s)\n";
+      }
+   }
+}
+
+if (keys %QueueWriteError) {
+   if ($Detail >= 5) {
+      print "\n\nError writing queue file:\n";
+      foreach $Reason (sort {$a cmp $b} keys %QueueWriteError) {
+         print "   $Reason : $QueueWriteError{$Reason} Time(s)\n";
+      }
+   }
+   else {
+      $n=0;
+      foreach $Reason (keys %QueueWriteError) {
+         $n+=$QueueWriteError{$Reason};
+      }
+      print "\n\nError writing queue file: $n Time(s)";
+   }
+}
+
+if (keys %MessageWriteError) {
+   if ($Detail >= 5) {
+      print "\n\nError writing message file:\n";
+      foreach $Reason (sort {$a cmp $b} keys %MessageWriteError) {
+         print "   $Reason : $MessageWriteError{$Reason} Time(s)\n";
+      }
+   }
+   else {
+      $n=0;
+      foreach $Reason (keys %MessageWriteError) {
+         $n+=$MessageWriteError{$Reason};
+      }
+      print "\n\nError writing message file: $n Time(s)";
+   }
+}
+
+if (keys %DatabaseGeneration) {
+   if ($Detail >= 5) {
+      print "\n\nDatabase files are not up-to-date (probably rehash is needed):\n";
+      foreach $Source (sort {$a cmp $b} keys %DatabaseGeneration) {
+         print "   $Source : $DatabaseGeneration{$Source} Time(s)\n";
+      }
+   }
+   else {
+      $n=0;
+      $fn=scalar(keys %DatabaseGeneration);
+      foreach $Source (keys %DatabaseGeneration) {
+         $n+=$DatabaseGeneration{$Source};
+      }
+      print "\n\nDatabase files are not up-to-date (probably rehash is needed): $fn File(s), $n Time(s)";
+   }
+}
+
+if (keys %PixWorkaround) {
+   if ($Detail >= 5) {
+      print "\n\nEnabled PIX workarounds for:\n";
+      foreach $Host (sort {$a cmp $b} keys %PixWorkaround) {
+         print "   $Host : $PixWorkaround{$Host} Time(s)\n";
+      }
+   }
+   else {
+      $n=0;
+      $hn=scalar(keys %PixWorkaround);
+      foreach $Host (keys %PixWorkaround) {
+         $n+=$PixWorkaround{$Host};
+      }
+      print "\n\nEnabled PIX workarounds for: $hn Host(s), $n Time(s)";
+   }
+}
+
+if (($Detail >=5) and (keys %SentBy)) {
+   print "\n\nTop ten local senders:\n";
+   foreach $ThisSender (sort {$a cmp $b} keys %SentBy) {
+      $ThisNumber = $SentBy{$ThisSender};
+      push(@{$ThisIsNumber{$ThisNumber}}, $ThisSender);
+   }
+   my $ListRank = 10;
+   foreach $SenderRank (sort {$b <=> $a} keys %ThisIsNumber) {
+      last unless ($ListRank > 0);
+      print "   $SenderRank messages sent by:\n";
+      foreach $ThisSender (@{$ThisIsNumber{$SenderRank}}) {
+         last unless ($ListRank > 0);
+         $ListRank--;
+         print"      $ThisSender\n";
+      }
+   }
+}
+
+if (keys %UnknownUsers) {
+   $un=scalar(keys %UnknownUsers);
+   if ($Detail >= 10) {
+      print "\n\nUnknown users: $un Time(s)\n";
+      foreach $ThisOne (sort {$a cmp $b} keys %UnknownUsers) {
+         print "   $ThisOne : $UnknownUsers{$ThisOne} Time(s)\n";
+      }
+   }
+   else {
+      $n=0;
+      foreach $ThisOne (keys %UnknownUsers) {
+         $n+=$UnknownUsers{$ThisOne};
+      }
+      print "\n\nUnknown users: $un, $n Time(s)";
+   }
+}
+
+if (keys %SaslAuthenticationFail) {
+   if ($Detail >= 5) {
+      print "\n\nSASL Authentication failed from:\n";
+      foreach $Host (sort {$a cmp $b} keys %SaslAuthenticationFail) {
+         print "   $Host : $SaslAuthenticationFail{$Host} Time(s)\n";
+      }
+   }
+   else {
+      $n=0;
+      $hn=scalar(keys %SaslAuthenticationFail);
+      foreach $Host (keys %SaslAuthenticationFail) {
+         $n+=$SaslAuthenticationFail{$Host};
+      }
+      print "\n\nSASL Authentication failed from: $hn Host(s), $n Time(s)";
+   }
+}
+
+if (keys %SaslAuth) {
+   if ($Detail >= 5) {
+      print "\n\nSASL Authenticated messages from:\n";
+      foreach $Host (sort {$a cmp $b} keys %SaslAuth) {
+         if ($Detail >= 10) {
+            print "    $Host:\n";
+            foreach $User (sort {$a cmp $b} keys %{$SaslAuth{$Host}} ) {
+               print "        sasluser $User : $SaslAuth{$Host}{$User} Times(s)\n";
+            }
+         }
+         else {
+            $n=0;
+            foreach $User (keys %{$SaslAuth{$Host}} ) {
+               $n+=$SaslAuth{$Host}{$User};
+            }
+            print "    $Host: $n Time(s)\n";
+         }
+      }
+   }
+   else {
+      $n=0;
+      $hn=scalar(keys %SaslAuth);
+      foreach $Host (keys %SaslAuth) {
+         foreach $User (keys %{$SaslAuth{$Host}} ) {
+            $n+=$SaslAuth{$Host}{$User};
+         }
+      }
+      print "\n\nSASL Authenticated messages from: $hn Host(s), $n Time(s)";
+   }
+}
+
+if (keys %TLSconnectFrom) {
+   if ($Detail >= 5) {
+      print "\n\nTLS Connections from:\n";
+      foreach $Host (sort {$a cmp $b} keys %TLSconnectFrom) {
+         print "   $Host : $TLSconnectFrom{$Host} Time(s)\n";
+      }
+   }
+   else {
+      $n=0;
+      $hn=scalar(keys %TLSconnectFrom);
+      foreach $Host (keys %TLSconnectFrom) {
+         $n+=$TLSconnectFrom{$Host};
+      }
+      print "\n\nTLS Connections from: $hn Host(s), $n Time(s)";
+   }
+}
+
+if (keys %TLSconnectTo) {
+   if ($Detail >= 5) {
+      print "\n\nTLS Connections to:\n";
+      foreach $Host (sort {$a cmp $b} keys %TLSconnectTo) {
+         print "   $Host : $TLSconnectTo{$Host} Time(s)\n";
+      }
+   }
+   else {
+      $n=0;
+      $hn=scalar(keys %TLSconnectTo);
+      foreach $Host (keys %TLSconnectTo) {
+         $n=$TLSconnectTo{$Host};
+      }
+      print "\n\nTLS Connections to: $hn Host(s), $n Time(s)";
+   }
+}
+
+if (keys %TLSunverified) {
+   if ($Detail >= 5) {
+      print "\n\nUnverified TLS certificates:\n";
+      foreach $Cert (sort {$a cmp $b} keys %TLSunverified) {
+         print "   $Cert : $TLSunverified{$Cert} Time(s)\n";
+      }
+   }
+   else {
+      $n=0;
+      $cn=scalar(keys %TLSunverified);
+      foreach $Cert (keys %TLSunverified) {
+         $n+=$TLSunverified{$Cert};
+      }
+      print "\n\nUnverified TLS certificates: $cn, $n Time(s)";
+   }
+}
+
+if (keys %RelayDenied) {
+   if ($Detail >= 5) {
+      print "\n\nRelaying denied:\n";
+      foreach $ThisOne (sort {$a cmp $b} keys %RelayDenied) {
+         print "   $ThisOne : $RelayDenied{$ThisOne} Time(s)\n";
+      }
+   }
+   else {
+      $n=0;
+      foreach $ThisOne (keys %RelayDenied) {
+         $n+=$RelayDenied{$ThisOne};
+      }
+      print "\n\nRelaying denied: $n Time(s)";
+   }
+}
+
+if (keys %SizeLimit) {
+   if ($Detail >= 5) {
+      print "\n\nMessage size exceeds fixed limit:\n";
+      foreach $Message (sort {$a cmp $b} keys %SizeLimit) {
+         print "   $Message: $SizeLimit{$Message} Time(s)\n";
+      }
+   }
+   else {
+      $n=0;
+      $mn=scalar(keys %SizeLimit);
+      foreach $Message (keys %SizeLimit) {
+         $n+=$SizeLimit{$Message};
+      }
+      print "\n\nMessage size exceeds fixed limit: $mn Message(s), $n Time(s)";
+   }
+}
+
+if (keys %LocalBounce) {
+   if ($Detail >= 5) {
+      print "\n\nLocal Bounce:\n";
+      foreach $ThisOne (sort {$a cmp $b} keys %LocalBounce) {
+         print "   $ThisOne : $LocalBounce{$ThisOne} Time(s)\n";
+      }
+   }
+   else {
+      $n=0;
+      $bn=scalar(keys %LocalBounce);
+      foreach $ThisOne (keys %LocalBounce) {
+         $n+=$LocalBounce{$ThisOne};
+      }
+      print "\n\nLocal Bounces: $bn, $n Time(s)";
+   }
+}
+
+if (keys %ForeignBounce) {
+   if ($Detail >= 5) {
+      print "\n\nForeign Bounce:\n";
+      foreach $ThisOne (sort {$a cmp $b} keys %ForeignBounce) {
+         print "   $ThisOne : $ForeignBounce{$ThisOne} Time(s)\n";
+      }
+   }
+   else {
+      $n=0;
+      $bn=scalar(keys %ForeignBounce);
+      foreach $ThisOne (keys %ForeignBounce) {
+         $n+=$ForeignBounce{$ThisOne};
+      }
+      print "\n\nForeign Bounce: $bn, $n Time(s)";
+   }
+}
+
+if (keys %HeaderReject) {
+   if ($Detail >= 10) {
+      print "\n\nHeader content reject:\n";
+      foreach $Reason (sort {$a cmp $b} keys %HeaderReject) {
+         print "   $Reason: ", scalar keys %{$HeaderReject{$Reason}} , " Time(s)\n";
+         foreach $Rejected (sort {$a cmp $b} keys %{$HeaderReject{$Reason}} ) {
+            print "      $Rejected : $HeaderReject{$Reason}{$Rejected} Time(s)\n";
+         }
+      }
+   }
+   else {
+      $n=0;
+      $rn=scalar(keys %HeaderReject);
+      foreach $Reason (keys %HeaderReject) {
+         foreach $Rejected (keys %{$HeaderReject{$Reason}} ) {
+            $n+=$HeaderReject{$Reason}{$Rejected};
+         }
+      }
+      print "\n\nHeader content rejected: $rn Reason(s), $n Time(s)";
+   }
+}
+
+if (keys %HeaderWarning) {
+   if ($Detail >= 10) {
+      print "\n\nHeader content warning (but passed):\n";
+      foreach $Reason (sort {$a cmp $b} keys %HeaderWarning) {
+         print "   $Reason:";
+         foreach $Warning (sort {$a cmp $b} keys %{$HeaderWarning{$Reason}} ) {
+            print "      $Warning : $HeaderWarning{$Reason}{$Warning} Time(s)\n";
+         }
+      }
+   }
+   else {
+      $n=0;
+      $rn=scalar(keys %HeaderWarning);
+      foreach $Reason (keys %HeaderWarning) {
+         foreach $Warning (keys %{$HeaderWarning{$Reason}} ) {
+            $n+=$HeaderWarning{$Reason}{$Warning};
+         }
+      }
+      print "\n\nHeader content warning (but passed): $rn Reason(s), $n Time(s)";
+   }
+}
+
+if (keys %BodyReject) {
+   if ($Detail >= 10) {
+      print "\n\nBody content reject:\n";
+      foreach $Reason (sort {$a cmp $b} keys %BodyReject) {
+         print "   $Reason: ", scalar keys %{$BodyReject{$Reason}} , " Time(s)\n";
+         foreach $Rejected (sort {$a cmp $b} keys %{$BodyReject{$Reason}} ) {
+            print "      $Rejected : $BodyReject{$Reason}{$Rejected} Time(s)\n";
+         }
+      }
+   }
+   else {
+      $n=0;
+      $rn=scalar(keys %BodyReject);
+      foreach $Reason (keys %BodyReject) {
+         foreach $Rejected (keys %{$BodyReject{$Reason}} ) {
+            $n+=$BodyReject{$Reason}{$Rejected};
+         }
+      }
+      print "\n\nBody content rejected: $rn Reason(s), $n Time(s)";
+   }
+}
+
+if (keys %RejectClient) {
+   print "\n\nClient hosts rejected:\n";
+   foreach $Reason (sort {$a cmp $b} keys %RejectClient) {
+      if ($Detail >= 5) {
+         print "    $Reason $RejectClientReason{$Reason} Time(s)\n";
+         foreach $Host (sort {$a cmp $b} keys %{$RejectClient{$Reason}} ) {
+            print "        $Host $RejectClientHost{$Reason}{$Host} Time(s)\n";
+            if ($Detail >= 10) {
+               foreach $Sender (sort {$a cmp $b} keys %{$RejectClient{$Reason}{$Host}}) {
+                  foreach $Recip (sort {$a cmp $b} keys %{$RejectClient{$Reason}{$Host}{$Sender}}) {
+                     print "            $Sender -> $Recip $RejectClient{$Reason}{$Host}{$Sender}{$Recip} Time(s)\n";
+                  }
+               }
+            }
+         }
+      }
+      else {
+         $n=0;
+         $hn=scalar(keys %{$RejectClient{$Reason}});
+         print "    $Reason: $hn Host(s), $RejectClientReason{$Reason} Time(s)\n";
+      }
+   }
+}
+
+if ($RejectUnknownClients > 0) {
+   if ($Detail >= 10) {
+      print "\n\nUnknown client hosts rejected $RejectUnknownClients Time(s)\n";
+      foreach $Host (sort {$a cmp $b} keys %RejectUnknownClient) {
+         print "   $Host\n";
+	 foreach $Helo (sort {$a cmp $b} keys %{$RejectUnknownClient{$Host}}) {
+	    print "	helo=<$Helo>\n";
+               foreach $Sender (sort {$a cmp $b} keys %{$RejectUnknownClient{$Host}{$Helo}}) {
+                  foreach $Recip (sort {$a cmp $b} keys %{$RejectUnknownClient{$Host}{$Helo}{$Sender}}) {
+                     print "		$Sender -> $Recip	$RejectUnknownClient{$Host}{$Helo}{$Sender}{$Recip} Time(s)\n";
+	       }
+            }
+	 }
+      }
+   }
+   elsif ($Detail >= 5) {
+      print "\n\nUnknown client hosts rejected $RejectUnknownClients Time(s)\n";
+      foreach $Host (sort {$a cmp $b} keys %RejectUnknownClientHost) {
+         print "   $Host	$RejectUnknownClientHost{$Host} Time(s)\n";
+      }
+   }
+   else {
+      $n=0;
+      foreach $Host (keys %RejectUnknownClientHost) {
+         $n++;
+      }
+      print "\n\nUnknown client hosts rejected $RejectUnknownClients Time(s): $n Host(s)";
+   }
+}
+
+if (($Detail >= 10) and (keys %UndeliverableMsg)) {
+   print "\n\nUndeliverable messages rejected:\n";
+   foreach $Reason (sort {$a cmp $b} keys %UndeliverableMsg) {
+      print "   $Reason: $UndeliverableMsg{$Reason} Time(s)\n";
+   }
+}
+
+if (keys %RejectSender) {
+   print "\n\nMessages rejected from sender:\n";
+   foreach $Reason (sort {$a cmp $b} keys %RejectSender) {
+      if ($Detail >= 5) {
+         print "    $Reason $RejectSenderReason{$Reason} Time(s)\n";
+         foreach $Host (sort {$a cmp $b} keys %{$RejectSender{$Reason}} ) {
+            print "        $Host $RejectSenderHost{$Reason}{$Host} Time(s)\n";
+            if ($Detail >= 10) {
+               foreach $Sender (sort {$a cmp $b} keys %{$RejectSender{$Reason}{$Host}}) {
+                  print "           $Sender : $RejectSender{$Reason}{$Host}{$Sender} Time(s)\n";
+               }
+            }
+         }
+      }
+      else {
+         $n=0;
+         $hn=scalar(keys %{$RejectSender{$Reason}});
+         print "    $Reason: $hn Host(s), $RejectSenderReason{$Reason} Time(s)\n";
+      }
+   }
+}
+
+if (keys %RejectRecip) {
+   if ($Detail >= 5) {
+      print "\n\nMessages rejected to recipient:\n";
+      foreach $Recip (sort {$a cmp $b} keys %RejectRecip) {
+         print "    $Recip:\n";
+         foreach $Host (sort {$a cmp $b} keys %{$RejectRecip{$Recip}} ) {
+            print "        $Host : $RejectRecip{$Recip}{$Host} Time(s)\n";
+         }
+      }
+   }
+   else {
+      $n=0;
+      $rn=scalar(keys %RejectRecip);
+      foreach $Recip (keys %RejectRecip) {
+         foreach $Host (keys %{$RejectRecip{$Recip}} ) {
+            $n+=$RejectRecip{$Recip}{$Host};
+         }
+      }
+      print "\n\nMessages rejected to: $rn Recipient(s), $n Time(s)";
+   }
+}
+
+if (keys %RejectAddress) {
+   if ($Detail >= 5) {
+      print "\n\nRejected sender address from:\n";
+      foreach $Host (sort {$a cmp $b} keys %RejectAddress) {
+         print "   $Host : $RejectAddress{$Host} Time(s)\n";
+      }
+   }
+   else {
+      $n=0;
+      $hn=scalar(keys %RejectAddress);
+      foreach $Host (keys %RejectAddress) {
+         $n+=$RejectAddress{$Host};
+      }
+      print "\n\nRejected sender address from: $hn Host(s), $n Time(s)";
+   }
+}
+
+if (keys %RejectRBL) {
+   print "\n\nMessages rejected using Anti-Spam site $RejectedRBL Time(s)\n";
+   foreach $Site (sort {$a cmp $b} keys %RejectRBL) {
+      $count = 0;
+      # okay there is probably a more efficient way to get this total
+      # than walking the container again, but my perl is weak
+      # and I want to know which list are working the best so I can
+      # put them at the top of the checking order in my configuration
+      foreach $Host ( keys %{$RejectRBL{$Site}} ) {
+         $count = $count + $RejectRBL{$Site}{$Host};
+      }
+      if ($Detail >= 5) {
+         print "    $Site identified $count spam messages:\n";
+         foreach $Host (sort {$a cmp $b} keys %{$RejectRBL{$Site}} ) {
+            print "      $Host : $RejectRBL{$Site}{$Host} Time(s)\n";
+         }
+      }
+      else {
+         print "    $Site identified $count spam messages.\n";
+      }
+   }
+}
+
+if (keys %RBLError) {
+   if ($Detail >= 5) {
+      print "\n\nRBL lookup errors $ErrorRBL Time(s)\n";
+      foreach $Site (sort {$a cmp $b} keys %RBLError) {
+         print "   $Site\n";
+         if ($Detail >= 10) {
+            foreach $Error (sort {$a cmp $b} keys %{$RBLError{$Site}} ) {
+               print "      $Error : $RBLError{$Site}{$Error} Time(s)\n";
+            }
+         }
+      }
+   }
+   else {
+      $n=0;
+      $hn=scalar(keys %RBLError);
+      print "\n\nRBL lookup errors for $hn Host(s), $ErrorRBL Time(s)";
+   }
+}
+
+if (keys %Discarded) {
+   if ($Detail >= 5) {
+      print "\n\nDiscarded messages:\n";
+      foreach $Recipient (sort {$a cmp $b} keys %Discarded) {
+         print "   $Recipient\n";
+         foreach $Reason (sort {$a cmp $b} keys %{$Discarded{$Recipient}} ) {
+            print "      $Reason : $Discarded{$Recipient}{$Reason} Time(s)\n";
+         }
+      }
+   }
+   else {
+      $n=0;
+      $rn=scalar(keys %Discarded);
+      foreach $Recipient (keys %Discarded) {
+         foreach $Reason (keys %{$Discarded{$Recipient}} ) {
+            $n+=$Discarded{$Recipient}{$Reason};
+         }
+      }
+      print "\n\nDiscarded messages to: $rn Recipient(s), $n Time(s)";
+   }
+}
+
+if (keys %AuthWarns) {
+   print "\n\nAuthentication warnings:\n";
+   foreach $ThisOne (sort {$a cmp $b} keys %AuthWarns) {
+      print "   $ThisOne : $AuthWarns{$ThisOne} Time(s)\n";
+   }
+}
+
+if (keys %ForwardErrors) {
+   print "\n\nForwarding errors:\n";
+   foreach $ThisOne (sort {$a cmp $b} keys %ForwardErrors) {
+      print "   $ThisOne : $ForwardErrors{$ThisOne} Time(s)\n";
+   }
+}
+
+if (($Detail >= 10) and (keys %SmtpConversationError)) {
+   print "\n\nSMTP commands dialog errors:\n";
+   foreach $Error (sort {$a cmp $b} keys %SmtpConversationError) {
+      print "   $Error:\n";
+      foreach $Host (sort {$a cmp $b} keys %{$SmtpConversationError{$Error}} ) {
+         print "      $Host : $SmtpConversationError{$Error}{$Host} Time(s)\n";
+      }
+   }
+}
+
+if (keys %TooManyErrors) {
+   if ($Detail >= 5) {
+      print "\n\nToo many errors in SMTP commands dialog:\n";
+      foreach $Command(sort {$a cmp $b} keys %TooManyErrors) {
+         print "   After command $Command:\n";
+         foreach $Host (sort {$a cmp $b} keys %{$TooManyErrors{$Command}} ) {
+            print "      $Host : $TooManyErrors{$Command}{$Host} Time(s)\n";
+         }
+      }
+   }
+   else {
+      $n=0;
+      $cn=scalar(keys %TooManyErrors);
+      foreach $Command(sort {$a cmp $b} keys %TooManyErrors) {
+         foreach $Host (sort {$a cmp $b} keys %{$TooManyErrors{$Command}} ) {
+            $n+=$TooManyErrors{$Command}{$Host};
+         }
+      }
+      print "\n\nToo many errors in SMTP commands dialog: $cn Command(s), $n Time(s)";
+   }
+}
+
+if (%UnauthPipeline) {
+   if ($Detail >= 5) {
+      print "\n\nImproper SMTP command pipelining attempts:\n";
+      foreach $Command (sort {$a cmp $b} keys %UnauthPipeline) {
+         print "   In command $Command from:\n";
+         foreach $Host (sort {$a cmp $b} keys %{$UnauthPipeline{$Command}} ) {
+            print "      $Host : $UnauthPipeline{$Command}{$Host} Time(s)\n";
+         }
+      }
+   }
+   else {
+      $n=0; $hn=0;
+      foreach $Command (sort {$a cmp $b} keys %UnauthPipeline) {
+         foreach $Host (keys %{$UnauthPipeline{$Command}}) {
+            $hn++;
+            $n+=$UnauthPipeline{$Command}{$Host};
+         }
+      }
+      print "\n\nImproper SMTP command pipelining attempts: $hn Host(s), $n Time(s)\n";
+   }
+}
+
+if (keys %ConnectionLost) {
+   print "\n\nConnections lost:\n";
+   foreach $ThisOne (sort {$a cmp $b} keys %ConnectionLost) {
+      print "   Connection lost while $ThisOne : $ConnectionLost{$ThisOne} Time(s)\n";
+   }
+}
+
+if (keys %MxError) {
+   if ($Detail >= 10) {
+      print "\n\nMalformed domain name in resource data of MX record:\n";
+      foreach $Domain (sort {$a cmp $b} keys %MxError) {
+         print "   $Domain : $MxError{$Domain} Time(s)\n";
+      }
+   }
+   else {
+      $n=0;
+      $dn=scalar(keys %MxError);
+      foreach $Domain (keys %MxError) {
+         $n+=$MxError{$Domain};
+      }
+      print "\n\nMalformed domain name in resource data of MX record: $dn Domain(s), $n Time(s)";
+   }
+}
+
+if (%IllegalAddressSyntax) {
+   print "\n\nIllegal address syntax:\n";
+   foreach $Command (sort {$a cmp $b} keys %IllegalAddressSyntax) {
+      if ($Detail >= 5) {
+         print "   In command $Command from:\n";
+         foreach $Host (sort {$a cmp $b} keys %{$IllegalAddressSyntax{$Command}} ) {
+            print "      $Host : $IllegalAddressSyntax{$Command}{$Host} Time(s)\n";
+         }
+      }
+      else {
+         $n=0;
+         $hn=scalar(keys %{$IllegalAddressSyntax{$Command}});
+         foreach $Host (keys %{$IllegalAddressSyntax{$Command}}) {
+            $n+=$IllegalAddressSyntax{$Command}{$Host};
+         }
+         print "   In command $Command from: $hn Host(s), $n Time(s)\n";
+      }
+   }
+}
+
+if (keys %HostnameVerification) {
+   if ($Detail >= 2) {
+      print "\n\nHostname verification errors:\n";
+      foreach $Error (sort {$a cmp $b} keys %HostnameVerification) {
+         print "   $Error : $HostnameVerification{$Error} Time(s)\n";
+      }
+   }
+   else{
+      $n=0;
+      $en=scalar(keys %HostnameVerification);
+      foreach $Error (keys %HostnameVerification) {
+         $n+=$HostnameVerification{$Error};
+      }
+      print "\n\nHostname verification errors: $en Error(s), $n Time(s)";
+   }
+}
+
+if (keys %MailerLoop) {
+   print "\n\nMailer Loop:\n";
+   foreach $Error (sort {$a cmp $b} keys %MailerLoop) {
+      print "   $Error : $MailerLoop{$Error} Time(s)\n";
+   }
+}
+
+if (keys %ValidHostname) {
+   if ($Detail >= 2) {
+      print "\n\nHostname validation errors:\n";
+      foreach $Message (sort {$a cmp $b} keys %ValidHostname) {
+         print "   $Message : $ValidHostname{$Message} Time(s)\n";
+      }
+   }
+   else{
+      $n=0;
+      $mn=scalar(keys %ValidHostname);
+      foreach $Message (keys %ValidHostname) {
+         $n+=$ValidHostname{$Message};
+      }
+      print "\n\nHostname validation errors: $mn Message(s), $n Time(s)";
+   }
+}
+
+if (keys %HeloError) {
+   print "\n\nErrors in HELO/EHLO conversation:\n";
+   foreach $Error (sort {$a cmp $b} keys %HeloError) {
+      if ($Detail >= 5) {
+         print "   $Error:\n";
+         foreach $Host (sort {$a cmp $b} keys %{$HeloError{$Error}} ) {
+            print "      $Host : $HeloError{$Error}{$Host} Time(s)\n";
+         }
+      }
+      else {
+         $n=0;
+         $hn=scalar(keys %{$HeloError{$Error}});
+         foreach $Host (keys %{$HeloError{$Error}} ) {
+            $n+=$HeloError{$Error}{$Host};
+         }
+         print "   $Error: from $hn Host(s), $n Time(s)\n";
+      }
+   }
+}
+
+if (keys %ProcessExit) {
+   print "\n\nProcess exited:\n";
+   foreach $Status (sort {$a cmp $b} keys %ProcessExit) {
+      print "   Exit status $Status:\n";
+      foreach $Process (sort {$a cmp $b} keys %{$ProcessExit{$Status}} ) {
+         print "      $Process: $ProcessExit{$Status}{$Process} Time(s)\n";
+      }
+   }
+}
+
+if (keys %UnknownWarnings) {
+   print "\n\nUnrecognized warning:\n";
+   foreach $ThisOne (sort {$a cmp $b} keys %UnknownWarnings) {
+      print "    $ThisOne : $UnknownWarnings{$ThisOne} Time(s)\n";
+   }
+}
+
+if ($#OtherList >= 0) {
+   print "\n\n**Unmatched Entries**\n\n";
+   print @OtherList;
+}
+{{ END }}

@@ -1,0 +1,9 @@
+{{ Use Date }}
+###################### LogReporter ({{ date.format(date.now,'%d-%b-%Y') }}) ######################
+###################### LogReporter (xx/xx/xx) ######################
+       Processing Initiated: {{ date.format(date.now,'%Y-%b-%d %H:%M:%s') }}
+       Date Range Processed: {{ date.format(conf.Range.start, '%Y-%b-%d %H:%M:%s') }}
+                             {{ date.format(conf.Range.end, '%Y-%b-%d %H:%M:%s') }}
+     Detail Level of Output: {{ conf.Detail }}
+          Logfiles for Host: {{ host }}
+####################################################################

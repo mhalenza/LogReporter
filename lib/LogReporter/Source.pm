@@ -38,6 +38,15 @@ sub register_service {
 
 sub init {
     my ($self) = @_;
+    my $filters = $self->filters;
+    unless ( ref $filters->[0] && $filters->[0]->can('isa') && $filters->[0]->isa('LogReporter::Filter::Date') ){
+        unshift @$filters, LogReporter::Filter::ISO8601->new(format => '^(\S+)\s+');
+    }
+    unless ( ref $filters->[1] && $filters->[1]->can('isa') && $filters->[1]->isa('LogReporter::Filter::DateRange') ){
+        splice @$filters, 1, 0, LogReporter::Filter::DateRange->new(
+            range => LogReporter->instance->config->{Range}, # This is horrible spaghetti logic :(
+        );
+    }
 }
 sub get_line {
     my ($self) = @_;

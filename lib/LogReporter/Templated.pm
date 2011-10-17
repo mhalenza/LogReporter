@@ -16,6 +16,11 @@ sub _build_tt2 {
         INCLUDE_PATH => [
             "$FindBin::Bin/../conf/tmpl/",
         ],
+        START_TAG => '{{',
+        END_TAG => '}}',
+        POST_CHOMP => 1,
+        PREPROCESS => 'HEADER',
+        POSTPROCESS => 'FOOTER',
     );
     
     return $tt2;

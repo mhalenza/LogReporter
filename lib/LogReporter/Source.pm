@@ -39,7 +39,9 @@ sub register_service {
 sub init {
     my ($self) = @_;
     my $filters = $self->filters;
-    unless ( ref $filters->[0] && $filters->[0]->can('isa') && $filters->[0]->isa('LogReporter::Filter::Date') ){
+    
+    unless ( ref $filters->[0] && $filters->[0]->can('does') && $filters->[0]->does('LogReporter::Filter::Date') ){
+        say "Building default Date (ISO8601) filter";
         unshift @$filters, LogReporter::Filter::ISO8601->new(format => '^(\S+)\s+');
     }
     unless ( ref $filters->[1] && $filters->[1]->can('isa') && $filters->[1]->isa('LogReporter::Filter::DateRange') ){

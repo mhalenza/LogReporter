@@ -99,7 +99,6 @@ sub _setup_services {
     foreach my $svc_name (keys %$service_config){
         my $svc_config = $service_config->{$svc_name};
         my $sources = $svc_config->{sources};
-        my $filters = $svc_config->{filters};
         
         my $src_objs = [ map { $self->_all_sources->{$_} } @$sources ];
         
@@ -154,7 +153,7 @@ sub _collect_output {
     
     say "Collecting output";
     my $all_output;
-    $tt2->process('MAIN_HEADER',{ conf => $self->config },\$all_output)
+    $tt2->process('MAIN_HEADER',{ conf => $self->config, START_TIME => $^T },\$all_output)
       or warn "MAIN_HEADER process: ".$tt2->error();
     foreach my $service (values %{$self->_all_services}){
         $tt2->process('HEADER',{ svc => $service->name },\$all_output)

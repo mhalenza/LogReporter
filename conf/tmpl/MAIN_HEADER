@@ -1,6 +1,6 @@
 {{ USE date }}
 ###################### LogReporter ({{ date.format(date.now,'%d/%m/%Y') }}) ######################
-       Processing Initiated: {{ date.format(start_time,'%Y/%m/%d %H:%M:%S') }} 
+       Processing Initiated: {{ date.format(START_TIME,'%Y/%m/%d %H:%M:%S') }} 
 
        Date Range Processed: {{ date.format(conf.Range.start.epoch, '%Y/%m/%d %H:%M:%S') }} 
 

@@ -15,14 +15,17 @@ sub filter {
     my ($self, $line, $meta) = @_;
     my $finder = $self->format();
     if ( $$line =~ $finder ){
-        my ($facility, $level) = @+{'f','l'};
+        my ($facility, $level, $host) = @+{'f','l','h'};
         $$line =~ s/$finder//;
         $meta->{syslog} = {
             facility => $facility,
             level => $level,
+            host => $host,
         };
+        return 1;
+    } else {
+        return 0;
     }
-    return 1;
 }
 
 

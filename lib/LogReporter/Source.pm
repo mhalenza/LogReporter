@@ -27,6 +27,7 @@ has '_services' => (
     traits => ['Array'],
     handles => {
         _services_push => 'push',
+        _services_count => 'count',
     },
 );
 
@@ -51,6 +52,11 @@ sub run {
     my ($self) = @_;
     my $filters = $self->filters;
     my $services = $self->_services;
+
+    unless (length @$services){
+        warn "Skipping source " . $self->name() . " because no interested services.\n";
+        return;
+    }
     
     LINE: while( my $line = $self->get_line() ){
         my $meta = {};

@@ -1,6 +1,9 @@
-package LogReporter::Service::Postfix;
+package LogReporter::Service::Postfix::Functions;
 use strict;
 use warnings;
+
+use Exporter 'import';
+our @EXPORT = (qw/formathost/);
 
 # Formats IP and hostname for even column spacing
 sub formathost {

@@ -165,9 +165,7 @@ sub _collect_output {
     }
     $tt2->process('MAIN_FOOTER',{ conf => $self->config },\$all_output)
       or warn "MAIN_FOOTER process: ". $tt2->error();
-    print "FINAL OUTPUT:\n--------------------------------------------\n";
-    print $all_output;
-    print "--------------------------------------------\n";
+    print "FINAL OUTPUT:\n$all_output";
 }
 
 

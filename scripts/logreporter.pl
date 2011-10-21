@@ -8,6 +8,7 @@ use Config::General;
 use Data::Dumper; #$Data::Dumper::Indent = 2;
 
 our $START_TIME = time();
+$|++;
 
 
 use FindBin;

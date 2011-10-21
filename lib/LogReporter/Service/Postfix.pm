@@ -3,250 +3,331 @@ use Moose;
 use namespace::autoclean;
 extends 'LogReporter::Service';
 no warnings 'misc';
+use LogReporter::Service::Postfix::Constants;
+use LogReporter::Service::Postfix::Functions;
 
-my $re_DSN    =  '(?:\d{3}(?: \d\.\d\.\d)?)';
-my $re_MsgID  =  '[a-zA-Z\d]+';
+override init => sub {
+    my ($self) = @_;
+    my $data = $self->data;
+    $data->{UNMATCHED} = {};
+    $data->{Totals} = {};
+    $data->{Counts} = {};
+};
 
 override process_line => sub {
     my ($self, $line, $meta) = @_;
-    
     my $data = $self->data;
+    my $subprog = $meta->{sp};
     
-    if (
-        ( $line =~ m/^$re_MsgID: client=([^ ]*\[[^ ]*\])\s*$/ ) or
-        ( $line =~ m/^$re_MsgID: message-id/ ) or
-        ( $line =~ m/^$re_MsgID: skipped, still being delivered/ ) or
-        ( $line =~ m/^$re_MsgID: to=\<.*>, relay=.*, delay=[\d.]+,(?: delays=[\d\/.]+, dsn=[\d.]+,)? status=(?:sent|deferred)/ ) or
-        ( $line =~ m/^$re_MsgID: host [^ ]*\[[^ ]*\] said: 4[0-9][0-9]/ ) or
-        ( $line =~ m/^$re_MsgID: host [^ ]*\[[^ ]*\] refused to talk to me: 4[0-9][0-9]/ ) or
-        ( $line =~ m/^$re_MsgID: sender non-delivery notification: $re_MsgID/ ) or
-        ( $line =~ m/^Deleted: \d message$/ ) or
-        ( $line =~ m/^Peer certficate could not be verified$/ ) or #postfix typo
-        ( $line =~ m/^Peer certificate could not be verified$/ ) or
-        ( $line =~ m/^Peer verification:/ ) or
-        ( $line =~ m/^SSL_accept error from/ ) or
-        ( $line =~ m/^Verified: / ) or
-        ( $line =~ m/^cert has expired/ ) or
-        ( $line =~ m/^connect/ ) or
-        ( $line =~ m/^daemon started$/ ) or
-        ( $line =~ m/^daemon started -- version / ) or
-        ( $line =~ m/^dict_eval_action:/ ) or
-        ( $line =~ m/^disconnect/ ) or
-        ( $line =~ m/^mynetworks:/ ) or
-        ( $line =~ m/^name_mask:/ ) or
-        ( $line =~ m/^reload(?: -- version [\d.]+,)? configuration/ ) or
-        ( $line =~ m/^setting up TLS connection (from|to)/ ) or
-        ( $line =~ m/^starting TLS engine$/ ) or
-        ( $line =~ m/^terminating on signal 15$/ ) or
-        ( $line =~ m/^warning: $re_MsgID: skipping further client input$/ ) or
-        ( $line =~ m/^warning: (?:smtpd_peer_init: )?[\.0-9]+: address not listed for hostname/ ) or
-        ( $line =~ m/^warning: (?:smtpd_peer_init: )?[\.0-9]+: hostname .* verification failed: Host not found/ ) or
-        ( $line =~ m/^warning: (?:smtpd_peer_init: )?[\.0-9]+: hostname .* verification failed: Name or service not known/ ) or
-        ( $line =~ m/^warning: (?:smtpd_peer_init: )?[\.0-9]+: hostname .* verification failed: Temporary failure in name resolution/ ) or
-        ( $line =~ m/^warning: Mail system is down -- accessing queue directly$/ ) or
-        ( $line =~ m/^warning: SASL authentication failure: Password verification failed$/ ) or
-        ( $line =~ m/^warning: SASL authentication failure: no secret in database$/ ) or
-        ( $line =~ m/^warning: no MX host for .* has a valid A record$/ ) or
-        ( $line =~ m/^warning: numeric domain name in resource data of MX record for .*$/ ) or
-        ( $line =~ m/^warning: premature end-of-input from cleanup socket while reading input attribute name$/ ) or
-        ( $line =~ m/^warning: uid=\d: Broken pipe$/ ) or
-        ( $line =~ m/^verify error:num=/ ) or
-        ( $line =~ m/hold: header / ) or
-        ( $line =~ m/^statistics: max / ) or
-        ( $line =~ m/^statistics: start interval / ) or
-        ( $line =~ m/^statistics: (address|domain) lookup / ) or
-        ( $line =~ m/: replace: header / ) or
-        ( $line =~ m/: Greylisted for / ) or                          # Greylisting has it's own statistics tool
-        ( $line =~ m/certificate verification failed for/o ) or       # Perhaps a candidate for extended statistics
-        ( $line =~ m/Server certificate could not be verified/o ) or  # Perhaps a candidate for extended statistics
-        ( $line =~ m/certificate peer name verification failed/o ) or # Perhaps a candidate for extended statistics
-        ( $line =~ m/sender non-delivery notification:/o )            # Perhaps a candidate for extended statistics
-    ){
-        return; # skip these
-    } elsif ( my ($Bytes) = ($line =~ /^$re_MsgID: from=[^,]+, size=(\d+), .*$/o) ){
-        #fixme count
-        $data->{MsgsQueue}++;
-        $data->{BytesTransferred} += $Bytes;
-    } elsif ( my ($User) = ($line =~ /^$re_MsgID: to=\<([^ ]*)>,(?: orig_to=\<(?:[^ ]*)>,)? relay=local, delay=-?\d+, status=bounced \((?:unknown user|user unknown)/)) {
-        # unknown user
-        $data->{UnknownUsers}{$User}++;
-    } elsif ( my ($User) = ($line =~ /^$re_MsgID: reject: RCPT from (?:[^ ]*): $re_DSN <([^ ]*)>:(?:[^:]+: )?User unknown in(?: \w+)+ table/)) {
-        # unknown local mailbox, alias, virtual user
-        $data->{UnknownUsers}{$User}++;
-    } elsif ( my ($User) = ($line =~ /^$re_MsgID: to=\<([^ ]*)>,(?: orig_to=\<(?:[^ ]*)>,)? .*, status=bounced .*: User unknown in virtual (alias|mailbox) table/)) {
-        # another unknown user probably could combine with local unknown but again my perl is weak
-        $data->{UnknownUsers}{$User}++;
-    } elsif ( my ($Dest, $Relay, $Msg) = ($line =~ /^$re_MsgID: to=\<([^ ]*)>,(?: orig_to=\<(?:[^ ]*)>,)? relay=([^ ]*).*, delay=-?[\d.]+(?:, delays=[\d\/.]+, dsn=[\d.]+)?, status=bounced \(([^)]*)/ )) {
-        # unknown user
-        # $Msg = " hello "
-        # print "bounce message from " . $Dest . " msg : " . $Relay . "\n";
-        if ($Relay =~ m/^(none|local|avcheck|127\.0\.0\.1)/) {
-            my $Temp = "To " . $Dest . " Msg=\"" . $Msg . "\"";
-            $data->{LocalBounce}{$Temp}++;
+    # We don't care about these, but see also less frequent log entries at the end
+    next if (
+           ( $line =~ /^Deleted: \d message$/ )
+        or ( $line =~ /: replace: header / )
+        or ( $line =~ /: Greylisted for / ) # Greylisting has it's own statistics tool
+        #XXX Perhaps the following are candidates for extended statistics
+        or ( $line =~ /certificate verification failed for/o )     
+        or ( $line =~ /Server certificate could not be verified/o )
+        or ( $line =~ /certificate peer name verification failed/o )
+        # SSL rubbish when logging at/above INFO level
+        or ( $line =~ /^[a-f\d]{4} [a-f\d]{2}/ )
+        or ( $line =~ /^[a-f\d]{4} - <SPACES/ )
+        # more from mail.info level and above
+        or ( $line =~ m/^read from [a-f\d]{8}/ )
+        or ( $line =~ m/^write to [a-f\d]{8}/ )
+    );
+    
+    # fatal errors
+    if ( $line =~ /^fatal: (.*)$/ ){
+        my ($reason) = $1;
+        if ( $reason =~ /^[^ ]*\(\d+\): Message file too big$/ ){
+            #TD fatal: root(0): Message file too big
+            $data->{Totals}->{'FatalFileTooBig'}++;
+            # XXX its not clear this is at all useful - consider falling through to last case
+        } elsif ( $reason =~ /^config variable ([^ ]*): (.*)$/ ){
+            #TD fatal: config variable inet_interfaces: host not found: 10.0.0.1:2525
+            #TD fatal: config variable inet_interfaces: host not found: all:2525
+            $data->{Totals}->{'FatalConfigError'}++;
+            $data->{Counts}->{'FatalConfigError'}{$reason}++;
         } else {
-            my $Temp = "To " . $Dest . " Msg=\"" . $Msg . "\"";
-            $data->{ForeignBounce}{$Temp}++;
+            #TD fatal: watchdog timeout
+            #TD fatal: bad boolean configuration: smtpd_use_tls =
+            $data->{Totals}->{'FatalError'}++;
+            $data->{Counts}->{'FatalError'}{"\u$reason"}++;
         }
-    } elsif ( my ($Relay,$Dest) = ($line =~ m/reject: RCPT from ([^ ]*): $re_DSN <([^ ]*)>.* Relay access denied.* to=([^ ]*)/) ) {
-        # print "reject: " . $line . "\n";
-        # print "Relay :" . $Relay . " to " . $Dest . "\n";
-        my $Temp = "From " . $Relay . " to " . $Dest;
-        $data->{RelayDenied}{$Temp}++;
-    } elsif ( my ($User,$From) = ($line =~ /^$re_MsgID: uid=([^ ]*) from=\<([^ ]*)>/)) {
-        #Messages sent by user
-        my $Temp = $From . " (uid=" . $User . "): ";
-        $data->{SentBy}{$Temp}++;
-    } elsif ( my ($From) = ($line =~ /^$re_MsgID: from=<([^ ]*)>, status=expired, returned to sender$/)) {
-        $data->{ReturnedToSender}++;
-    } elsif ( (undef) = ($line =~ /^$re_MsgID: resent-message-id=<([^ ]*)>$/)) {
-        $data->{ResentMessages}++;
-    } elsif (
-      my ($Command,$Host) = ($line =~ /lost connection after (.*) from ([^ ]*)$/) or
-      my ($Host,$Command) = ($line =~ /^$re_MsgID: lost connection with ([^ ]*) while (.*)$/)
-    ) {
-        # Make some better summary with hosts
-        $data->{ConnectionLost}{$Command}++;
-    } elsif (
-      my ($Command,$Host) = ($line =~ /timeout after (.*) from ([^ ]*)$/) or
-      my ($Host,$Command) = ($line =~ /^$re_MsgID: conversation with ([^ ]*) timed out while (.*)$/)
-    ) {
-        # Make some better summary with hosts
-        $data->{ConnectionLost}{$Command}++;
-    } elsif ( my ($Rejected,undef,undef,undef,$Reason) = ($line =~ /^$re_MsgID: reject: header (.*); from=<([^ ]*)> to=<([^ ]*)>( proto=[^ ]* helo=<[^ ]*>)?: (.*)$/)) {
-        $data->{HeaderReject}{$Reason}{$Rejected}++;
-    } elsif ( my ($Warning,undef,undef,undef,$Reason) = ($line =~ /^$re_MsgID: warning: header (.*); from=<([^ ]*)> to=<([^ ]*)>( proto=[^ ]* helo=<[^ ]*>)?: (.*)$/)) {
-        $data->{HeaderWarning}{$Reason}{$Warning}++;
-    } elsif ( my ($Warning,undef,undef,undef) = ($line =~ /^$re_MsgID: warning: header (.*); from=<([^ ]*)> to=<([^ ]*)>( proto=[^ ]* helo=<[^ ]*>)?$/)) {
-        $data->{HeaderWarning}{"Unknown Reason"}{$Warning}++;
-    } elsif ( my ($Rejected,undef,undef,undef,$Reason) = ($line =~ /^$re_MsgID: reject: body (.*); from=<([^ ]*)> to=<([^ ]*)>( proto=[^ ]* helo=<[^ ]*>)?: (.*)$/)) {
-        $data->{BodyReject}{$Reason}{$Rejected}++;
-    } elsif ( my (undef,undef,undef,$Reason) = ($line =~ /^$re_MsgID: to=<([^ ]*)>,( orig_to=<[^ ]*>,)? relay=([^ ]*), delay=\d+, status=undeliverable \((.*)\)$/)) {
-        $data->{Undeliverable}++;
-        $data->{UndeliverableMsg}{$Reason}++;
-    } elsif ( my (undef,undef,undef,undef) = ($line =~ /^$re_MsgID: to=<([^ ]*)>,( orig_to=<[^ ]*>,)? relay=([^ ]*), delay=\d+, status=deliverable \((.*)\)$/)) {
-        $data->{Deliverable}++;
-    } elsif ( my ($Host,$Sender,$Reason) = ($line =~ /reject: RCPT from ([^ ]*\[[^ ]*\]): $re_DSN <(.*)>: Sender address rejected: (.*);/)) {
-        $data->{RejectSender}{$Reason}{$Host}{$Sender}++;
-        $data->{RejectSenderHost}{$Reason}{$Host}++;
-        $data->{RejectSenderReason}{$Reason}++;
-    } elsif ( my ($Host,$Reason,$Sender,$Recip) = ($line =~ /reject: RCPT from ([^ ]*\[[^ ]*\]): $re_DSN <[^ ]*\[[^ ]*\]>: Client host rejected: (.*); from=<(.*)> to=<(.*)> proto=/)) {
-        $data->{RejectClient}{$Reason}{$Host}{$Sender}{$Recip}++;
-        $data->{RejectClientHost}{$Reason}{$Host}++;
-        $data->{RejectClientReason}{$Reason}++;
-    } elsif ( my ($Host,$Sender,$Recip,$Helo) = ($line =~ /reject: RCPT from [^ ]*\[([^ ]*)\]: $re_DSN Client host rejected: cannot find your hostname, \[\d+\.\d+\.\d+\.\d+\]; from=<(.*?)> to=<(.*?)> proto=\S+ helo=<(.*)>/)) {
-        $data->{RejectUnknownClient}{$Host}{$Helo}{$Sender}{$Recip}++;
-        $data->{RejectUnknownClientHost}{"$Host	helo=<$Helo>"}++;
-        $data->{RejectUnknownClients}++;
-    } elsif ( my ($Host,$Recip,$Reason) = ($line =~ /reject: RCPT from ([^ ]*\[[^ ]*\]): $re_DSN <(.*)>: Recipient address rejected: (.*);/)) {
-        my $Temp = "$Host : $Reason";
-        $data->{RejectRecip}{$Recip}{$Temp}++;
-    } elsif ( my ($Host,undef) = ($line =~ /reject: RCPT from ([^ ]*\[[^ ]*\]): $re_DSN <(.*)>: Sender address rejected: Access denied;/)) {
-        $data->{RejectAddress}{$Host}++;
-    } elsif ( my ($Host,$Site,$Reason) = ($line =~ /reject: RCPT from ([^ ]*\[[^ ]*\]): $re_DSN Service unavailable; (?:Client host )?\[[^ ]*\] blocked using ([^ ]*), reason: (.*);/)) {
-        my $Temp = "$Host : $Reason";
-        $data->{RejectRBL}{$Site}{$Temp}++;
-        $data->{RejectedRBL}++;
-    } elsif ( my ($Host,$Site) = ($line =~ /reject: RCPT from ([^ ]*\[[^ ]*\]): $re_DSN Service unavailable; (?:Sender address |Client host )?\[[^ ]*\] blocked using ([^ ]*);/)) {
-        $data->{RejectRBL}{$Site}{$Host}++;
-        $data->{RejectedRBL}++;
-    } elsif ( my ($Host,$Site,$Reason) = ($line =~ /warning: ([^ ]*): RBL lookup error: Name service error for \d+\.\d+\.\d+\.\d+\.([^ ]*): (.*)$/)) {
-        my $Temp = "$Host : $Reason";
-        $data->{RBLError}{$Site}{$Temp}++;
-        $data->{ErrorRBL}++;
-    } elsif ( my ($Host,$Site,$Reason) = ($line =~ /discard: RCPT from ([^ ]*\[[^ ]*\]): ([^ ]*): ([^;]*);/)) {
-        $data->{Discarded}{$Site}{$Reason}++;
-    } elsif ( my (undef,undef,$Error) = ($line =~ /warning: ([^ ]*): hostname ([^ ]*) verification failed: (.*)$/)) {
-        $data->{HostnameVerification}{$Error}++;
-    } elsif ( $line =~ /^$re_MsgID: removed\s*$/) {
-        $data->{RemovedFromQueue}++;
-        #TD 2F38EE3341: enabling PIX <CRLF>.<CRLF> workaround for host.name[111.222.333.444]
-        #TD 2A34C1123BC4: enabling PIX workarounds: disable_esmtp delay_dotcrlf for host.name[111.222.333.444]:25
-    } elsif ( my ($Host) = ($line =~ /^$re_MsgID: enabling PIX (?:<CRLF>\.<CRLF> )?workaround(?:s: [a-z_, -]+)? for ([^ ]*\[[^ ]*\])(?::\d+)?$/)) {
-        $data->{PixWorkaround}{$Host}++;
-    } elsif ( my ($Message) = ($line =~ /warning: valid_hostname: (.*)$/)) {
-        $data->{ValidHostname}{$Message}++;
-    } elsif ( my ($Host,$Error) = ($line =~ /warning: host ([^ ]*\[[^ ]*\]) (greeted me with my own hostname [^ ]*)$/)) {
-        $data->{HeloError}{$Error}{$Host}++;
-    } elsif ( my ($Host,$Error) = ($line =~ /warning: host ([^ ]*\[[^ ]*\]) (replied to HELO\/EHLO with my own hostname [^ ]*)$/)) {
-        $data->{HeloError}{$Error}{$Host}++;
-    } elsif ( my ($Host,$Error) = ($line =~ /reject: RCPT from ([^ ]*\[[^ ]*\]): $re_DSN <.*>: (Helo command rejected: .*);/)) {
-        $data->{HeloError}{$Error}{$Host}++;
-    } elsif ( my ($Error,$Host) = ($line =~ /(bad size limit "\([^ ]*\)" in EHLO reply) from ([^ ]*\[[^ ]*\])$/)) {
-        $data->{HeloError}{$Error}{$Host}++;
-    } elsif ( my ($Host,$Command) = ($line =~ /warning: Illegal address syntax from ([^ ]*\[[^ ]*\]) in ([^ ]*) command:/)) {
-        $data->{IllegalAddressSyntax}{$Command}{$Host}++;
-    } elsif ( my ($Command,$Host) = ($line =~ /^improper command pipelining after ([^ ]*) from ([^ ]*\[[^ ]*\])/ )) {
-        $data->{UnauthPipeline}{$Command}{$Host}++;
-    } elsif ( my ($Error) = ($line =~ /warning: mailer loop: (.*)$/)) {
-        $data->{MailerLoop}{$Error}++;
-    } elsif ( my ($Host) = ($line =~ /warning: ([^ ]*\[[^ ]*\]): SASL .* authentication failed/)) {
-        $data->{SaslAuthenticationFail}{$Host}++;
-    } elsif (
-      my ($Host,$User) = ($line =~ /^$re_MsgID: client=([^ ]*\[[^ ]*\]), .* sasl_username=([^ ]*)$/) or
-      my ($Host,$User) = ($line =~ /^$re_MsgID: client=([^ ]*\[[^ ]*\]), sasl_sender=([^ ]*)$/) or
-      my ($Host,$User) = ($line =~ /^$re_MsgID: client=([^ ]*\[[^ ]*\]), .* sasl_username=([^ ]*), sasl_sender=[^ ]*$/)
-    ) {
-        chomp($User);
-        $data->{SaslAuth}{$Host}{$User}++;
-    } elsif ( my ($Host) = ($line =~ /TLS connection established from ([^ ]*\[[^ ]*\]):/)) {
-        $data->{TLSconnectFrom}{$Host}++;
-    } elsif ( my ($Host) = ($line =~ /TLS connection established to ([^ ]*):/)) {
-        $data->{TLSconnectTo}{$Host}++;
-    } elsif ( my ($Cert) = ($line =~ /^Unverified: (.*)/)) {
-        $data->{TLSunverified}{$Cert}++;
-    } elsif ( my ($Domain) = ($line =~ /warning: malformed domain name in resource data of MX record (.*)$/)) {
-        $data->{MxError}{$Domain}++;
-    } elsif ( my ($Host,$Command) = ($line =~ /warning: ([^ ]*\[[^ ]*\]) sent .* header instead of ([^ ]*) command: /)) {
-        my $Error = "Sent message header instead of $Command command";
-        $data->{SmtpConversationError}{$Error}{$Host}++;
-    } elsif (
-      ($line =~ m/warning: smtp_connect_addr: socket: Address family not supported by protocol/) or
-      ($line =~ m/warning: smtp_addr_one: unknown address family \d for [^ ]*/)
-    ) {
-        $data->{UnsupportedFamily}++;
-    } elsif (
-      ($line =~ m/(lookup |)table has changed -- exiting$/) or
-      ($line =~ m/table ([^ ]*) has changed -- restarting$/)
-    ) {
-        $data->{TableChanged}++;
-    } elsif (
-      ($line =~ m/^fatal: [^ ]*\(\d+\): Message file too big$/) or
-      ($line =~ m/^warning: $re_MsgID: queue file size limit exceeded$/) or
-      ($line =~ m/^warning: uid=\d+: File too large$/)
-    ) {
-        $data->{QueueSizeExceeded}++;
-    } elsif ( my ($Command,$Host) = ($line =~ /too many errors after ([^ ]*) from ([^ ]*\[[^ ]*\])$/)) {
-        $data->{TooManyErrors}{$Command}{$Host}++;
-    } elsif ( my (undef,undef,$To) = ($line =~ /^reject: RCPT from ([^ ]*\[[^ ]*\]): 552 Message size exceeds fixed limit; from=<([^ ]*)> to=<([^ ]*)>$/)) {
-        $data->{SizeLimit}{"$From -> $To"}++;
-    } elsif ( my ($Server) = ($line =~ /^NOQUEUE: reject: MAIL from ([^ ]*\[[^ ]*\]): 552 Message size exceeds fixed limit; proto=[^ ]* helo=<[^ ]*>$/)) {
-        $data->{SizeLimit}{"MAIL from $Server"}++;
-    } elsif ( my (undef,$Source) = ($line =~ /^warning: database ([^ ]*) is older than source file ([\w\/.-]+)$/)) {
-        $data->{DatabaseGeneration}{$Source}++;
-    } elsif ( my ($Reason) = ($line =~ /^warning: $re_MsgID: write queue file: (.*)$/)) {
-        $data->{QueueWriteError}{$Reason}++;
-    } elsif ( my ($Reason) = ($line =~ /^warning: open active $re_MsgID: (.*)$/)) {
-        $data->{QueueWriteError}{"open active: $Reason"}++;
-    } elsif ( my ($Reason) = ($line =~ /^warning: qmgr_active_corrupt: save corrupt file queue active id $re_MsgID: (.*)$/)) {
-        $data->{QueueWriteError}{"active corrupt: $Reason"}++;
-    } elsif ( my ($Reason) = ($line =~ /^warning: qmgr_active_done_3_generic: remove $re_MsgID: (.*)$/)) {
-        $data->{QueueWriteError}{"remove active: $Reason"}++;
-    } elsif ( my ($Reason) = ($line =~ /^warning: [^ ]*\/$re_MsgID: (Error writing message file)$/)) {
-        $data->{MessageWriteError}{$Reason}++;
-    } elsif ( $line =~ /reject: RCPT from [^ ]*\[[^ ]*\]: \d+ Insufficient system storage; from=<.*> to=<.*>/) {
-        $data->{NoFreeSpace}++;
-    } elsif ( my ($Process,$Status) = ($line =~ /^warning: process ([^ ]*) pid \d+ exit status (\d+)$/)) {
-        $data->{ProcessExit}{$Status}{$Process}++;
-    } elsif ( my ($Option,$Reason) = ($line =~ /^fatal: config variable ([^ ]*): (.*)$/)) {
-        $data->{ConfigError}{$Option}{$Reason}++;
-    } elsif ( my ($db,$Reason) = ($line =~ /fatal: open database (\S*): (.*)/) ) {
-        $data->{Databases}{$db}{$Reason}++;
-    } elsif ( my ($Warn) = ($line =~ /^warning: (.*)/)) {
-        # keep this as the next to last condition
-        $data->{UnknownWarnings}{$Warn}++;
-    } else {
-        push @{ $data->{OtherList} },$line;
+    }
+    
+    ### postfix-script
+    elsif ( $subprog eq 'postfix-script' ){
+        if ( $line =~ /^starting the Postfix mail system/ ){
+            $data->{Totals}->{'PostfixStart'}++;
+        } elsif ( $line =~ /^stopping the Postfix mail system/ ){
+            $data->{Totals}->{'PostfixStop'}++;
+        } elsif ( $line =~ /^refreshing the Postfix mail system/ ){
+            $data->{Totals}->{'PostfixRefresh'}++;
+        } elsif ( $line =~ /^waiting for the Postfix mail system to terminate/ ){
+            $data->{Totals}->{'PostfixWaiting'}++;
+        } else {
+            $data->{UNMATCHED}->{'postfix-script'}->{$line}++
+        }
+    }
+    
+    # common log entries up front
+    elsif ( $line =~ /^connect from/ ){
+        #TD25 connect from sample.net[10.0.0.1]
+        #TD connect from mail.example.com[2001:dead:beef::1]
+        #TD connect from localhost.localdomain[127.0.0.1]
+        $data->{Totals}->{'ConnectionInbound'}++;
+    }
+    elsif ( $line =~ /^disconnect from/ ){
+        #TD25 disconnect from sample.net[10.0.0.1]
+        #TD disconnect from mail.example.com[2001:dead:beef::1]
+        $data->{Totals}->{'Disconnection'}++;
+    }
+    elsif ( my ($host,$hostip,$reason) = ($line =~ /^connect to ([^[]*)\[($re_IP)\]: (.*)$/o) ){
+        # all "connect to" messages indicate a problem with the connection
+        #TD connect to example.org[10.0.0.1]: Connection refused (port 25)
+        #TD connect to mail.sample.com[10.0.0.1]: No route to host (port 25)
+        #TD connect to sample.net[192.168.0.1]: read timeout (port 25)
+        #TD connect to mail.example.com[10.0.0.1]: server dropped connection without sending the initial SMTP greeting (port 25)
+        #TD connect to mail.example.com[192.168.0.1]: server dropped connection without sending the initial SMTP greeting (port 25)
+        #TD connect to ipv6-1.example.com[2001:dead:beef::1]: Connection refused (port 25)
+        #TD connect to ipv6-2.example.com[FEDC:BA98:7654:3210:FEDC:BA98:7654:3210]: Connection refused (port 25)
+        #TD connect to ipv6-3.example.com[1080:0:0:0:8:800:200C:4171]: Connection refused (port 25)
+        #TD connect to ipv6-4.example.com[3ffe:2a00:100:7031::1]: Connection refused (port 25)
+        #TD connect to ipv6-5.example.com[1080::8:800:200C:417A]: Connection refused (port 25)
+        #TD connect to ipv6-6.example.com[::192.9.5.5]: Connection refused (port 25)
+        #TD connect to ipv6-7.example.com[::FFFF:129.144.52.38]: Connection refused (port 25)
+        #TD connect to ipv6-8.example.com[2010:836B:4179::836B:4179]: Connection refused (port 25)
+        $data->{Totals}->{'ConnectToFailure'}++;
+        $data->{Counts}->{'ConnectToFailure'}{$reason}{formathost($hostip,$host)}++;
+    }
+    elsif ( my ($reason) = ($line =~ /^panic: (.*)$/) ){
+        #TD panic: myfree: corrupt or unallocated memory block
+        $data->{Totals}->{'PanicError'}++;
+        $data->{Counts}->{'PanicError'}{"\u$reason"}++;
+    }
+    
+    # ^warning: ...
+    elsif ( my ($warning) = ($line =~ /^warning: (.*)$/ ) ){
+        $self->handle_warning($line, $warning);
     }
 };
+
+
+sub handle_warning {
+    my ($self, $line, $warning) = @_;
+    my $data = $self->data;
+    
+    # Skip these
+    next if ( $warning =~ /$re_QID: skipping further client input$/o  );
+    next if ( $warning =~ /^Mail system is down -- accessing queue directly$/ );
+    next if ( $warning =~ /^SASL authentication failure: (?:Password verification failed|no secret in database)$/ );
+    next if ( $warning =~ /^no MX host for .* has a valid A record$/ );
+    next if ( $warning =~ /^uid=\d: Broken pipe$/ );
+
+    #TD warning: connect to 127.0.0.1:12525: Connection refused
+    #TD warning: problem talking to server 127.0.0.1:12525: Connection refused
+    #TD warning: valid_ipv4_hostaddr: invalid octet count:
+
+    my ($addr, $size);
+
+    if (
+    ($warning =~ /^(?:smtpd_peer_init: )?(?<hostip>$re_IP): hostname (?<host>[^ ]+) verification failed: (?<reason>.*)$/o ) or
+    ($warning =~ /^(?:smtpd_peer_init: )?(?<hostip>$re_IP): (?<reason>address not listed for hostname) (?<host>.*)$/o ) ){
+        my ($hostip,$host,$reason) = @+{'hostip','host','reason'};
+        #TD warning: 10.0.0.1: hostname sample.com verification failed: Host not found 
+        #TD warning: smtpd_peer_init: 192.168.0.1: hostname example.com verification failed: Name or service not known 
+        #TD warning: 192.168.0.1: address not listed for hostname sample.net
+        $data->{Totals}->{'HostnameVerification'}++;
+        $data->{Counts}->{'HostnameVerification'}{"\u$reason"}{formathost($hostip,$host)}++;
+    }
+    
+    elsif (
+    ($warning =~ /^$re_QID: queue file size limit exceeded$/o ) or
+    ($warning =~ /^uid=\d+: File too large$/) ){
+        $data->{Totals}->{'WarnFileTooBig'}++;
+    }
+    
+    elsif ( my ($source) = ($warning =~ /^database (?:[^ ]*) is older than source file ([\w\/]+)$/) ){
+        #TD warning: database /etc/postfix/client_checks.db is older than source file /etc/postfix/client_checks 
+        $data->{Totals}->{'DatabaseGeneration'}++;
+        $data->{Counts}->{'DatabaseGeneration'}{$source}++;
+    }
+    
+    elsif (
+    ($warning =~ /^(?<r>open active) (?<qid>$re_QID): (?<r2>.*)$/o ) or
+    ($warning =~ /^qmgr_active_corrupt: (?<r>save corrupt file queue active) id (?<qid>$re_QID): (?<r2>.*)$/o ) or
+    ($warning =~ /^(?<qid>$re_QID): (?<r>write queue file): (?<r2>.*)$/o ) ){
+        my ($qid,$reason,$reason2) = @+{'qid','r','r2'};
+        #TD warning: open active BDB9B1309F7: No such file or directory
+        #TD warning: qmgr_active_corrupt: save corrupt file queue active id 4F4272F342: No such file or directory
+        #TD warning: E669DE52: write queue file: No such file or directory
+        $data->{Totals}->{'QueueWriteError'}++;
+        $data->{Counts}->{'QueueWriteError'}{"$reason: $reason2"}{$qid}++;
+    }
+    
+    elsif ( my ($qid,$reason) = ($warning =~ /^qmgr_active_done_3_generic: remove ($re_QID) from active: (.*)$/o ) ){
+        #TD warning: qmgr_active_done_3_generic: remove AF0F223FC05 from active: No such file or directory 
+        $data->{Totals}->{'QueueWriteError'}++;
+        $data->{Counts}->{'QueueWriteError'}{"remove from active: $reason"}{$qid}++;
+    }
+    
+    elsif ( my ($queue,$qid) = ($warning =~ /^([^\/]*)\/($re_QID): Error writing message file$/o ) ){
+        #TD warning: maildrop/C9E66ADF: Error writing message file 
+        $data->{Totals}->{'MessageWriteError'}++;
+        $data->{Counts}->{'MessageWriteError'}{$queue}{$qid}++;
+    }
+    
+    elsif ( my ($process,$status) = ($warning =~ /^process ([^ ]*) pid \d+ exit status (\d+)$/) ){
+        #TD warning: process /usr/lib/postfix/smtp pid 9724 exit status 1
+        $data->{Totals}->{'ProcessExit'}++;
+        $data->{Counts}->{'ProcessExit'}{"$process: exit status $status"}++;
+    }
+    
+    elsif ( my ($reason) = ($warning =~ /^mailer loop: (.*)$/) ){
+        #TD warning: mailer loop: best MX host for example.com is local
+        $data->{Totals}->{'MailerLoop'}++;
+        $data->{Counts}->{'MailerLoop'}{$reason}++;
+    }
+    
+    elsif ( my ($reason,$domain) = ($warning =~ /^(malformed domain name in resource data of MX record) for (.*):$/) ){
+        #TD warning: malformed domain name in resource data of MX record for mail.example.com:
+        $data->{Totals}->{'MxError'}++;
+        $data->{Counts}->{'MxError'}{"\u$reason"}{$domain}{""}++;
+    }
+    
+    elsif ( my ($reason,$host,$reason2) = ($warning =~ /^(Unable to look up MX host) for ([^:]*): (.*)$/) ){
+        #TD warning: Unable to look up MX host for example.com: Host not found
+        $reason2 = 'Host not found'  if ($reason2 =~ /^Host not found, try again/);
+        $data->{Totals}->{'MxError'}++;
+        $data->{Counts}->{'MxError'}{"\u$reason"}{"\u$reason2"}{$host}{""}++;
+    }
+    
+    elsif ( my ($reason,$host,$to,$reason2) = ($warning =~ /^(Unable to look up MX host) (.*) for Sender address ([^:]*): (.*)$/) ){
+        #TD warning: Unable to look up MX host mail.example.com for Sender address from@example.com: hostname nor servname provided, or not known
+        $reason2 = 'Host not found'  if ($reason2 =~ /^Host not found, try again/);
+        my ($name, $domain) = split ('@', "\L$to");
+        $data->{Totals}->{'MxError'}++;
+        $data->{Counts}->{'MxError'}{"\u$reason"}{"\u$reason2"}{$host}{$name}++;
+    }
+    
+    elsif (
+    ($warning =~ /^([^[]+)\[($re_IP)\] sent \w+ header instead of SMTP command: (.*)$/o )  or
+    ($warning =~ /^non-SMTP command from ([^[]+)\[($re_IP)\]: (.*)$/o ) ){
+        my ($host,$hostip,$type) = ($1,$2,$3);
+        # ancient
+        #TD warning: example.com[192.168.0.1] sent message header instead of SMTP command: From: "Someone" <40245426501example.com>
+        # current
+        #TD warning: non-SMTP command from sample.net[10.0.0.1]: Received: from 192.168.0.1 (HELO bogus.sample.com)
+        $data->{Totals}->{'SmtpConversationError'}++;
+        $data->{Counts}->{'SmtpConversationError'}{formathost($hostip,$host)}{$type}++;
+    }
+    
+    elsif ( my ($msg) = ($warning =~ /^valid_hostname: (.*)$/) ){
+        #TD warning: valid_hostname: empty hostname 
+        $data->{Totals}->{'HostnameValidationError'}++;
+        $data->{Counts}->{'HostnameValidationError'}{$msg}++;
+    }
+    
+    elsif ( my ($host,$hostip,$type) = ($warning =~ /^([^[]+)\[($re_IP)\]: SASL (.*) authentication failed/o ) ){
+        #TD warning: example.com[192.168.0.1]: SASL DIGEST-MD5 authentication failed 
+        $data->{Totals}->{'SaslAuthFail'}++;
+        $data->{Counts}->{'SaslAuthFail'}{formathost($hostip,$host)}++;
+    }
+    
+    elsif ( my ($host,$site,$reason) = ($warning =~ /^([^:]*): RBL lookup error:.* Name service error for (?:name=)?$re_IP\.([^:]*): (.*)$/o ) ){
+        #TD warning: 192.168.0.1.sbl.spamhaus.org: RBL lookup error: Host or domain name not found. Name service error for name=192.168.0.1.sbl.spamhaus.org type=A: Host not found, try again
+        #TD warning: 10.0.0.1.relays.osirusoft.com: RBL lookup error: Name service error for 10.0.0.1.relays.osirusoft.com: Host not found, try again 
+        $data->{Totals}->{'RBLError'}++;
+        $data->{Counts}->{'RBLError'}{$site}{$reason}{$host}++;
+    }
+    
+    elsif (
+    ($warning =~ /^host ([^[]+)\[($re_IP)\] (greeted me with my own hostname) ([^ ]*)$/o ) or
+    ($warning =~ /^host ([^[]+)\[($re_IP)\] (replied to HELO\/EHLO with my own hostname) ([^ ]*)$/o ) ){
+        my ($host,$hostip,$reason,$helo) = ($1,$2,$3,$4);
+        #TD warning: host example.com[192.168.0.1] greeted me with my own hostname example.com 
+        #TD warning: host example.com[192.168.0.1] replied to HELO/EHLO with my own hostname example.com
+        $data->{Totals}->{'HeloError'}++;
+        $data->{Counts}->{'HeloError'}{"\u$reason"}{formathost($hostip,$host)}++;
+    }
+    
+    elsif ( my($host,$hostip,$cmd,$addr) = ($warning =~ /^Illegal address syntax from ([^[]+)\[($re_IP)\] in ([^ ]*) command: (.*)/o ) ){
+        #TD warning: Illegal address syntax from example.com[192.168.0.1] in MAIL command: user@sample.net
+        $addr =~ s/[<>]//g;
+        $data->{Totals}->{'IllegalAddrSyntax'}++;
+        $data->{Counts}->{'IllegalAddrSyntax'}{$cmd}{$addr}{formathost($hostip,$host)}++;
+    }
+    
+    elsif (
+    ($warning =~ /^numeric (hostname): ($re_IP)$/o ) or
+    ($warning =~ /^numeric domain name in (resource data of MX record) for (.*)$/ ) ){
+        my ($reason, $host) = ($1,$2);
+        #TD warning: numeric hostname: 192.168.0.1
+        #TD warning: numeric domain name in resource data of MX record for sample.com: 192.168.0.1
+        if (($host,$hostip) = ($host =~ /([^:]+): ($re_IP)/o)) {
+            $host = formathost($hostip,$host);
+        }
+        $data->{Totals}->{'NumericHostname'}++;
+        $data->{Counts}->{'NumericHostname'}{"\u$reason"}{$host}++;
+    }
+    
+    elsif ( my ($service,$when) = ($warning =~ /^premature end-of-input on ([^ ]+) (.*)$/ ) ){
+        #TD warning: premature end-of-input on private/anvil while reading input attribute name
+        $data->{Totals}->{'PrematureEOI'}++;
+        $data->{Counts}->{'PrematureEOI'}{$service}{$when}++;
+    }
+    
+    elsif ( my ($service,$reason) = ($warning =~ /^(.*): (bad command startup -- throttling)/o ) ){
+        #TD warning: /usr/libexec/postfix/trivial-rewrite: bad command startup -- throttling
+        $data->{Totals}->{'StartupError'}++;
+        $data->{Counts}->{'StartupError'}{"Service: $service"}{$reason}++;
+    }
+    
+    elsif ( my ($service,$reason) = ($warning =~ /(problem talking to service [^:]*): (.*)$/o ) ){
+        #TD warning: problem talking to service rewrite: Connection reset by peer
+        #TD warning: problem talking to service rewrite: Success
+        $data->{Totals}->{'CommunicationError'}++;
+        $data->{Counts}->{'CommunicationError'}{"\u$service"}{$reason}++;
+    }
+    
+    elsif ( my ($map,$key) = ($warning =~ /^$re_QID: ([^ ]*) map lookup problem for (.*)$/o ) ){
+        #TD warning: 6F74F74431: virtual_alias_maps map lookup problem for root@example.com
+        $data->{Totals}->{'MapProblem'}++;
+        $data->{Counts}->{'MapProblem'}{"$map"}{$key}++;
+    }
+    
+    elsif ( my ($map,$reason) = ($warning =~ /pcre map ([^,]+), (.*)$/ ) ){
+        #TD warning: pcre map /etc/postfix/body_checks, line 92: unknown regexp option "F": skipping this rule
+        $data->{Totals}->{'MapProblem'}++;
+        $data->{Counts}->{'MapProblem'}{$map}{$reason}++;
+    }
+    
+    elsif ( my ($reason) = ($warning =~ /dict_ldap_lookup: (.*)$/ ) ){
+        #TD warning: dict_ldap_lookup: Search error 80: Internal (implementation specific) error
+        $data->{Totals}->{'LdapError'}++;
+        $data->{Counts}->{'LdapError'}{$reason}++;
+    }
+    
+    elsif ( my ($size,$host,$hostip) = ($warning =~ /^bad size limit "([^"]+)" in EHLO reply from ([^[]+)\[($re_IP)\]$/o ) ){
+        #TD warning: bad size limit "-679215104" in EHLO reply from example.com[192.168.0.1] 
+        $data->{Totals}->{'HeloError'}++;
+        $data->{Counts}->{'HeloError'}{"Bad size limit in EHLO reply"}{formathost($hostip,$host)}{"$size"}++;
+    }
+    
+    elsif ( my ($size,$host,$hostip,$service) = ($warning =~ /^Connection concurrency limit exceeded: (\d+) from ([^[]+)\[($re_IP)\] for service (.*)/o ) ){
+        #TD warning: Connection concurrency limit exceeded: 51 from example.com[192.168.0.1] for service smtp
+        $data->{Totals}->{'ConcurrencyLimit'}++;
+        $data->{Counts}->{'ConcurrencyLimit'}{$service}{formathost($hostip,$host)}{$size}++;
+    }
+    
+    else {
+        #TD warning: No server certs available. TLS won't be enabled
+        #TD warning: smtp_connect_addr: bind <localip>: Address already in use 
+        $data->{Totals}->{'WarningsOther'}++;
+        $data->{Counts}->{'WarningsOther'}{$warning}++;
+    }
+}
+
 
 1;

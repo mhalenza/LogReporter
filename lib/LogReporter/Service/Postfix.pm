@@ -115,9 +115,104 @@ override process_line => sub {
     
     # ^$re_QID: ...
     elsif ( my ($qid, $p2) = ($line =~ /^($re_QID): (.*)$/o ) ){
-        $self->handle_QID($line,$qid,$p2);
+        $self->handle_QID($line,$subprog,$qid,$p2);
     }
-
+    
+    # see also ConnectionLost in $re_QID section
+    elsif ( my ($reason,$host,$hostip) = ($line =~ /lost connection (after [^ ]*) from ([^[]*)\[($re_IP|unknown)\]$/o ) ){
+        unless ($hostip =~ /unknown/) {
+            #TD lost connection after CONNECT from mail.example.com[192.168.0.1] 
+            $data->{Totals}->{'ConnectionLost'}++;
+            $data->{Counts}->{'ConnectionLost'}{"\u$reason"}{formathost($hostip,$host)}++;
+        } else {
+            # According to Wietse, this is "a symptom of doing too much before-queue processing. When
+            # Postfix falls behind, established connections accumulate in the kernel, and clients
+            # disconnect after timeout while waiting for the SMTP server to respond."
+            # So, we'll call this out as a warning
+            $data->{Totals}->{'ConnectionLostOverload'}++;
+            $data->{Counts}->{'ConnectionLostOverload'}{"\u$reason"}{formathost($hostip,$host)}++;
+        }
+    }
+    
+    elsif ($subprog eq 'postsuper') {
+        ### placed on hold
+        if ( my ($nmsgs) = ($line =~ /^Placed on hold: (\d+) messages?$/)) {
+            #TD Placed on hold: 2 messages
+            $data->{Totals}->{'Hold'}++;
+            $data->{Counts}->{'Hold'}{'<postsuper>'}++;
+        }
+        ### postsuper release from hold
+        elsif ( my ($nmsgs) = ($line =~ /^Released from hold: (\d+) messages?$/)) {
+            #TD Released from hold: 1 message
+            $data->{Totals}->{'ReleasedFromHold'} += $nmsgs;
+        }
+        ### postsuper requeued
+        elsif ( my ($nmsgs) = ($line =~ /^Requeued: (\d+) messages?$/)) {
+            #TD Requeued: 1 message
+            $data->{Totals}->{'Requeued'} += $nmsgs;
+        }
+        else {
+            $data->{UNMATCHED}->{'postsuper'}->{$line}++;
+        }
+    }
+    
+    # see also TimeoutInbound in $re_QID section
+    elsif ( my ($reason,$host,$hostip) = ($line =~ /^timeout (after [^ ]*) from ([^[]*)\[($re_IP)\]$/o) ){
+        #TD timeout after RSET from example.com[192.168.0.1]
+        $data->{Totals}->{'TimeoutInbound'}++;
+        $data->{Counts}->{'TimeoutInbound'}{"\u$reason"}{formathost($hostip,$host)}++;
+    }
+    
+    elsif ( my ($rej_action,$host,$hostip,$site,$reason)  = ($line =~ /^(reject(?:_warning)?): RCPT from ([^[]+)\[($re_IP)\]: $re_DSN Service unavailable; (?:Client host |Sender address )?\[[^ ]*\] blocked using ([^ ]*)(?:, reason: (.*))?;/o ) ){
+        $rej_action =~ s/^r/R/; $rej_action =~ s/_warning/Warn/;
+        # Note: similar code above: search RejectRBL
+        # postfix doesn't always log QID.  Also, "reason:" was probably always present in this case, but I'm not certain
+        #TD reject: RCPT from example.com[10.0.0.1]: 554 Service unavailable; [10.0.0.1] blocked using orbz.org, reason: Open relay. Please see http://orbz.org/?10.0.0.1; from=<from@example.com> to=<to@sample.net> 
+        #TD reject_warning: RCPT from example.com[10.0.0.1]: 554 Service unavailable; [10.0.0.1] blocked using orbz.org, reason: Open relay. Please see http://orbz.org/?10.0.0.1; from=<from@example.com> to=<to@sample.net> 
+        $data->{Totals}->{"${rej_action}RBL"}++;
+        if ($reason =~ /^$/) {
+            $data->{Counts}->{"${rej_action}RBL"}{$site}{formathost($hostip,$host)}++;
+        } else {
+            $data->{Counts}->{"${rej_action}RBL"}{$site}{formathost($hostip,$host)}{$reason}++;
+        }
+    }
+    
+    ### smtpd_tls_loglevel >= 1
+    # Server TLS messages
+    elsif ( my ($status,$host,$hostip,$type) = ($line =~ /^(?:(Trusted|Untrusted) )?TLS connection established from ([^[]+)\[($re_IP)\]: (.*)$/o ) ){
+        #TD TLS connection established from example.com[192.168.0.1]: TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits) 
+        # Postfix 2.5+: status: Untrusted or Trusted
+        #TD Untrusted TLS connection established from example.com[192.168.0.1]: TLSv1 with cipher DHE-RSA-AES256-SHA (256/256 bits) 
+        $type = "$status: $type"   if ($status);
+        $data->{Totals}->{'TlsServerConnect'}++;
+        $data->{Counts}->{'TlsServerConnect'}{formathost($hostip,$host)}{$type}++; 
+    }
+    
+    # Client TLS messages
+    elsif ( my ($status,$host,$type) = ($line =~ /^(?:(Verified|Trusted|Untrusted) )?TLS connection established to ([^ ]*): (.*)$/) ){
+        #TD TLS connection established to example.com: TLSv1 with cipher AES256-SHA (256/256 bits) 
+        # Postfix 2.5+: peer verification status: Untrusted, Trusted or Verified when
+        # server's trust chain is valid and peername is matched
+        #TD Verified TLS connection established to 127.0.0.1[127.0.0.1]:26: TLSv1 with cipher DHE-DSS-AES256-SHA (256/256 bits)
+        $type = "$status: $type"   if ($status);
+        $data->{Totals}->{'TlsClientConnect'}++;
+        $data->{Counts}->{'TlsClientConnect'}{$host}{$type}++; 
+    }
+    
+    # smtp_tls_note_starttls_offer=yes
+    elsif ( my ($host) = ($line =~ /^Host offered STARTTLS: \[(.*)\]$/) ){
+        #TD Host offered STARTTLS: [mail.example.com]
+        $data->{Totals}->{'TlsOffered'}++;
+        $data->{Counts}->{'TlsOffered'}{$host}++; 
+    }
+    ### smtpd_tls_loglevel >= 1
+    elsif ( my ($cert) = ($line =~ /^Unverified: (.*)/) ){
+        #TD Unverified: subject_CN=(www|smtp|mailhost).(example.com|sample.net), issuer=someuser 
+        $data->{Totals}->{'TlsUnverified'}++;
+        $data->{Counts}->{'TlsUnverified'}{$cert}++; 
+    }
+    
+    
 };
 
 sub handle_warning {
@@ -336,7 +431,7 @@ sub handle_warning {
 }
 
 sub handle_QID {
-    my ($self, $line, $qid, $p2) = @_;
+    my ($self, $line, $subprog, $qid, $p2) = @_;
     my $data = $self->data;
     
     return if ( $p2 =~ /^client=(?:[^ ]*\[[^ ]*\])\s*$/o );
@@ -356,16 +451,16 @@ sub handle_QID {
     return if ( $p2 =~ /^message-id=/ );
     # XXX probably don't care about message-id; for now, useful debug aid
     #if (($p3) = ($p2 =~ /^message-id=<(.*)>$/ )) {
-    #   if (exists $Qids{$qid}) {
+    #   if (exists $data->{Qids}->{$qid}) {
     #      print "Error: Duplicate QID: $qid, $p3\n";
     #   }
-    #   $Qids{$qid}{'message-id'} = $p3;
+    #   $data->{Qids}->{$qid}{'message-id'} = $p3;
     #}
     
     # $re_QID: reject: ...
     # $re_QID: reject_warning: ...
     if ( my ($rej_action,$p3) = ($p2 =~ /^(reject(?:_warning)?): (.*)$/ ) ){
-        $self->handle_QID_reject($line, $rej_action, $p3);
+        $self->handle_QID_reject($line, $qid, $rej_action, $p3);
     }
 
     # ^$re_QID: ...  (not rejects)
@@ -374,14 +469,14 @@ sub handle_QID {
         #TD12 2A535C2E01: from=<anyone@example.com>, size=25302, nrcpt=2 (queue active)
         #TD F0EC9BBE2: from=<from@example.com>, size=5529, nrcpt=1 (queue active)
         # Distinguish bytes accepted vs. bytes delivered due to multiple recips
-        #if (!exists $Qids{$qid}) {
-        #   print "ERROR: no Qids{$qid} found\n";
+        #if (!exists $data->{Qids}->{$qid}) {
+        #   print "ERROR: no $data->{Qids}->{$qid} found\n";
         #}
-        if (!exists $Qids{$qid} and !exists $Qids{$qid}{'nrcpt'}) {
-            $Qids{$qid}{'nrcpt'} = $nrcpt;
-            $Qids{$qid}{'size'} = $bytes;
-            $Totals{'MsgsAccepted'}++;
-            $Totals{'BytesAccepted'} += $bytes;
+        if (!exists $data->{Qids}->{$qid} and !exists $data->{Qids}->{$qid}{'nrcpt'}) {
+            $data->{Qids}->{$qid}{'nrcpt'} = $nrcpt;
+            $data->{Qids}->{$qid}{'size'} = $bytes;
+            $data->{Totals}->{'MsgsAccepted'}++;
+            $data->{Totals}->{'BytesAccepted'} += $bytes;
         }
         #else {
         #   Occurs for each deferral   
@@ -391,61 +486,61 @@ sub handle_QID {
     
     ### sent, forwarded, bounced, softbounce, deferred, (un)deliverable
     elsif ( my ($to,$origto,$relay,$DDD,$status,$reason) = ($p2 =~ /^to=<([^>]*)>,(?: orig_to=\<([^>]*)>,)? relay=([^ ]*).*, ($re_DDD), status=([^ ]+) (.*)$/o  ) ){
-        $self->process_sfbdu($line,$to,$origto,$relay,$DDD,$status,$reason);
+        $self->process_sfbdu($line,$subprog,$qid,$to,$origto,$relay,$DDD,$status,$reason);
     }
     
     # XXX don't care about this anymore; MsgsAccepted are counted with from= lines
     elsif ( $p2 =~ /^uid=(?:[^ ]*) from=<(?:[^>]*)>/o ){
         #TD2 1DFE2C2E18: uid=0 from=<root>
-        #$Totals{'MsgsAccepted'}++;
+        #$data->{Totals}->{'MsgsAccepted'}++;
     }
     
     elsif ( my ($from) = ($p2 =~ /^from=<([^>]*)>, status=expired, returned to sender$/o ) ){
         #TD 9294C8866: from=<from@example.com>, status=expired, returned to sender
         $from = "<>"  if ($from =~ /^$/);
-        $Totals{'ReturnedToSender'}++;
-        $Counts{'ReturnedToSender'}{$from}++;
+        $data->{Totals}->{'ReturnedToSender'}++;
+        $data->{Counts}->{'ReturnedToSender'}{$from}++;
     }
     
     elsif ( $p2 =~ /^resent-message-id=<?(?:[^>]*)>?$/o ){
         #TD 52A49200E1: resent-message-id=4739073.1
         #TD DB2E3C2E0E: resent-message-id=<ARF+DXZwLECdxm@mail.example.com>
-        $Totals{'MsgsResent'}++;
+        $data->{Totals}->{'MsgsResent'}++;
     } 
     
     # see also ConnectionLost elsewhere
     elsif ( my ($host,$hostip,$reason) = ($p2 =~ /^lost connection with ([^[]*)\[($re_IP)\] (while .*)$/o ) ){
         #TD EB7D4341F0: lost connection with sample.net[10.0.0.1] while sending MAIL FROM
         #TD 5F6C7C2E0F: lost connection with sample.net[10.0.0.2] while receiving the initial server greeting
-        $Totals{'ConnectionLost'}++;
-        $Counts{'ConnectionLost'}{"\u$reason"}{formathost($hostip,$host)}++;
+        $data->{Totals}->{'ConnectionLost'}++;
+        $data->{Counts}->{'ConnectionLost'}{"\u$reason"}{formathost($hostip,$host)}++;
     }
     
     # see also TimeoutInbound elsewhere
     elsif ( my ($host,$hostip,$reason) = ($p2 =~ /^conversation with ([^[]*)\[($re_IP)\] timed out (while .*)$/o ) ){
         #TD C20574341F3: conversation with sample.net[10.0.0.1] timed out while receiving the initial SMTP greeting 
-        $Totals{'TimeoutInbound'}++;
-        $Counts{'TimeoutInbound'}{"\u$reason"}{formathost($hostip,$host)}++;
+        $data->{Totals}->{'TimeoutInbound'}++;
+        $data->{Counts}->{'TimeoutInbound'}{"\u$reason"}{formathost($hostip,$host)}++;
     }
     
     elsif ( $p2 =~ /^sender delay notification: $re_QID$/o ){
         #TD 8DB93C2FF2: sender delay notification: AA61EC2F9A 
-        $Totals{'SenderDelayNotification'}++;
+        $data->{Totals}->{'SenderDelayNotification'}++;
     }
     
     elsif ( my ($warning,$host,$hostip,$to,$reason) = ($p2 =~ /^warning: header (.*) from ([^[]+)\[($re_IP)\]; from=<(?:[^ ]*)> to=<([^ ]*)>(?: proto=[^ ]* helo=<[^ ]*>)?(?:: (.*))?$/o ) ){
         $reason = 'Unknown Reason'    if ($reason =~ /^$/);
-        $Totals{'WarningHeader'}++;
-        $Counts{'WarningHeader'}{$reason}{formathost($hostip,$host)}{$to}{$warning}++;
+        $data->{Totals}->{'WarningHeader'}++;
+        $data->{Counts}->{'WarningHeader'}{$reason}{formathost($hostip,$host)}{$to}{$warning}++;
     }
     
     ### filter messages
-    elsif ( ($host,$hostip,$trigger,$reason,$filter,$from,$to) = ($p2 =~ /^filter: RCPT from ([^[]+)\[($re_IP)\]: <([^>]*)>: (.*) triggers FILTER ([^;]+); from=<([^>]*)> to=<([^>]+)> proto=\S+ helo=<[^>]+>$/o )) {
+    elsif ( my ($host,$hostip,$trigger,$reason,$filter,$from,$to) = ($p2 =~ /^filter: RCPT from ([^[]+)\[($re_IP)\]: <([^>]*)>: (.*) triggers FILTER ([^;]+); from=<([^>]*)> to=<([^>]+)> proto=\S+ helo=<[^>]+>$/o )) {
         $from = "<>"		if ($from =~ /^$/);
         #TD NOQUEUE: filter: RCPT from example.com[10.0.0.1]: <>: Sender address triggers FILTER filter:somefilter; from=<> to=<to@sample.net> proto=SMTP helo=<example.com>
         #TD NOQUEUE: filter: RCPT from example.com[192.168.0.1]: <to@exmple.com>: Recipient address triggers FILTER smtp-amavis:[127.0.0.1]:10024; from=<from@sample.net> to=<to@example.com> proto=SMTP helo=<sample.net>
-        $Totals{'Filtered'}++;
-        $Counts{'Filtered'}{$reason}{$filter}{formathost($hostip,$host)}{$trigger}{$to}{$from}++;
+        $data->{Totals}->{'Filtered'}++;
+        $data->{Counts}->{'Filtered'}{$reason}{$filter}{formathost($hostip,$host)}{$trigger}{$to}{$from}++;
     }
     
     ### Hold messages
@@ -453,8 +548,8 @@ sub handle_QID {
         #TD E9E0CC2E22: hold: header Message-ID: <user@example.com> from localhost[127.0.0.1]; from=<test@sample.net> to=<user@example.com> proto=ESMTP helo=<sample.net>: Log message here
         #TD 76561D30BF: hold: header Received: from sample.net (sample.net[192.168.0.1])??by example.com (Postfix) with ESMTP id 676530BF??for <X>; Thu, 20 Oct 2006 13:27: from sample.net[192.168.0.2]; from=<user@sample.net> to=<touser@example.com> proto=ESMTP helo=<sample.net>
         $reason = 'Unknown Reason'    if ($reason =~ /^$/);
-        $Totals{'Hold'}++;
-        $Counts{'Hold'}{$reason}{formathost($hostip,$host)}{$to}++;
+        $data->{Totals}->{'Hold'}++;
+        $data->{Counts}->{'Hold'}{$reason}{formathost($hostip,$host)}{$to}++;
     }
     
     elsif ( my ($reason,$host,$to) = ($p2 =~ /^hold: (?:header|body) (.*) from (local); from=<(?:[^ ]*)>(?: to=<([^ ]*)>)?/o ) ){
@@ -462,21 +557,21 @@ sub handle_QID {
         #TD BAFC080410: hold: header Received: by example.com (Postfix, from userid 0 BAFC080410; Tue, 10 Apr 2007 03:11:21 +0200 (CEST) from local; from=<user@example.com>
         $reason = 'Unknown Reason'    if ($reason =~ /^$/);
         $to = 'Unknown'               if ($to =~ /^$/);
-        $Totals{'Hold'}++;
-        $Counts{'Hold'}{$reason}{$host}{$to}++;
+        $data->{Totals}->{'Hold'}++;
+        $data->{Counts}->{'Hold'}{$reason}{$host}{$to}++;
     }
     
     elsif ( $p2 =~ /^removed\s*$/o ){
         # 52CBDC2E0F: removed
-        if (exists $Qids{$qid}) {
-            delete $Qids{$qid};
+        if (exists $data->{Qids}->{$qid}) {
+            delete $data->{Qids}->{$qid};
         }
         #else {
         #   happens when log lines are outside of logwatch's range
         #   or a log rotation occurred.
-        #   print "Debug: Qids{$qid} nonexistent\n";
+        #   print "Debug: data->{Qids}->{$qid} nonexistent\n";
         #}
-        $Totals{'RemovedFromQueue'}++;
+        $data->{Totals}->{'RemovedFromQueue'}++;
     }
     
     elsif (
@@ -486,8 +581,8 @@ sub handle_QID {
         #TD 6DE182FC0B: enabling PIX <CRLF>.<CRLF> workaround for example.com[192.168.0.1]
         #TD 272D0C2E55: enabling PIX <CRLF>.<CRLF> workaround for mail.sample.net[10.0.0.1]:25
         #TD 83343C2E16: enabling PIX workarounds: disable_esmtp delay_dotcrlf for spam.example.org[10.0.0.1]:25
-        $Totals{'PixWorkaround'}++;
-        $Counts{'PixWorkaround'}{$type}{formathost($hostip,$host)}++;
+        $data->{Totals}->{'PixWorkaround'}++;
+        $data->{Counts}->{'PixWorkaround'}{$type}{formathost($hostip,$host)}++;
     }
     
     elsif ( my ($host,$hostip,$p3) = ($p2 =~ /^client=([^[]+)\[($re_IP)\],( sasl_(?:method|username|sender)=.*)$/o ) ){
@@ -502,28 +597,28 @@ sub handle_QID {
         # sasl_sender occurs when AUTH verb is present in MAIL FROM, typically used for relaying
         # the username (eg. sasl_username) of authenticated users.
         if ($Sender) {
-            $Totals{'SaslAuthRelay'}++;
-            $Counts{'SaslAuthRelay'}{"$Sender ($User)"}{$Method}{formathost($hostip,$host)}++;
+            $data->{Totals}->{'SaslAuthRelay'}++;
+            $data->{Counts}->{'SaslAuthRelay'}{"$Sender ($User)"}{$Method}{formathost($hostip,$host)}++;
         } else {
-            $Totals{'SaslAuth'}++;
-            $Counts{'SaslAuth'}{$User}{$Method}{formathost($hostip,$host)}{$Sender}++;
+            $data->{Totals}->{'SaslAuth'}++;
+            $data->{Counts}->{'SaslAuth'}{$User}{$Method}{formathost($hostip,$host)}{$Sender}++;
         }
     }
     
     elsif ( $p2 =~ /^sender non-delivery notification/ ){
         #TD 5426ACC81: sender non-delivery notification: 7446BCD68
-        $Totals{'DSNUndelivered'}++;
+        $data->{Totals}->{'DSNUndelivered'}++;
     }
     
     elsif ( $p2 =~ /^sender delivery status notification/ ){
         #TD 5426ACC81: sender delivery status notification: 7446BCD68
-        $Totals{'DSNDelivered'}++;
+        $data->{Totals}->{'DSNDelivered'}++;
     }
     
     elsif ( my ($host,$hostip,$site,$reason) = ($p2 =~ /^discard: RCPT from ([^[]+)\[($re_IP)\]: ([^:]*): ([^;]*);/o) ){
         #TD NOQUEUE: discard: RCPT from sample.net[192.168.0.1]: <sender@example.com>: Sender address - test; from=<sender@example.com> to=<To@sample.net> proto=ESMTP helo=<example.com>
-        $Totals{'Discarded'}++;
-        $Counts{'Discarded'}{formathost($hostip,$host)}{$site}{$reason}++;
+        $data->{Totals}->{'Discarded'}++;
+        $data->{Counts}->{'Discarded'}{formathost($hostip,$host)}{$site}{$reason}++;
     }
     
     elsif ( my ($cmd,$host,$hostip,$reason,$p3) = ($p2 =~ /^milter-reject: (\S+) from ([^[]+)\[($re_IP)\]: $re_DSN ([^;]+); (.*)$/o ) ){
@@ -531,19 +626,20 @@ sub handle_QID {
         #TD NOQUEUE: milter-reject: CONNECT from sample.net[10.0.0.1]: 451 4.7.1 Service unavailable - try again later; proto=SMTP
         #TD C569C12: milter-reject: END-OF-MESSAGE from sample.net[10.0.0.1]: 5.7.1 black listed URL host sample.com by .black.uribl.com; from=<from@sample.net> to=<to@example.com> proto=ESMTP helo=<sample.net>
         # Note: reject_warning does not seem to occur
-        $Totals{'RejectMilter'}++;
-        #$Counts{'RejectMilter'}{$cmd}{formathost($hostip,$host)}{$reason}{$p3}++;
-        $Counts{'RejectMilter'}{$cmd}{formathost($hostip,$host)}{$reason}++;
+        $data->{Totals}->{'RejectMilter'}++;
+        #$data->{Counts}->{'RejectMilter'}{$cmd}{formathost($hostip,$host)}{$reason}{$p3}++;
+        $data->{Counts}->{'RejectMilter'}{$cmd}{formathost($hostip,$host)}{$reason}++;
     }
     
     else {
         # keep this as the last condition in this else clause
-        inc_unmatched('unknownqid', $OrigLine);
+        $data->{UNMATCHED}->{'unknownqid'}->{$line}++
     }
 }
 
 sub handle_QID_reject {
-    my ($self, $line, $rej_action, $p3) = @_;
+    my ($self, $line, $qid, $rej_action, $p3) = @_;
+    my $data = $self->data;
 
     $rej_action =~ s/^r/R/; $rej_action =~ s/_warning$/Warn/;
 
@@ -552,15 +648,15 @@ sub handle_QID_reject {
         # Recipient address rejected: Unknown users and via check_recipient_access
         
         if ( $p4 !~ /^([^[]+)\[($re_IP)\]: ($re_DSN) (.*)$/o ) {
-            inc_unmatched('reject1', $OrigLine);
-            next;
+            $data->{UNMATCHED}->{'reject1'}->{$line}++;
+            return;
         }
         my ($host,$hostip,$dsn,$p5) = ($1,$2,$3,$4);
         
         $rej_action = "Temp$rej_action"    if ($dsn =~ /^4/);
         
         # XXX there may be many semicolon separated messages; need to parse based on "from="
-        if ( ($recip,$reason,$p6) = ($p5 =~ /^<(.*)>: Recipient address rejected: ([^;]*);(.*)$/o )) {
+        if ( my ($recip,$reason,$p6) = ($p5 =~ /^<(.*)>: Recipient address rejected: ([^;]*);(.*)$/o )) {
             # Unknown users; local mailbox, alias, virtual, relay user, unspecified
             if ( $reason =~ s/^User unknown *//o ){
                 my ($table) = ($reason =~ /^in ((?:\w+ )+table)/o);
@@ -576,8 +672,8 @@ sub handle_QID_reject {
                 #TD NOQUEUE: reject: RCPT from example.com[2001:dead:beef::1]: 450 <to@example.net>: Recipient address rejected: Greylisted; from=<from@example.com> to=<to@example.net> proto=ESMTP helo=<example.com>
                 #print "User: $User, table: $table\n";
                 
-                $Totals{"${rej_action}UnknownUser"}++;
-                $Counts{"${rej_action}UnknownUser"}{"\u$table"}{"\L$recip"}{$from}++;
+                $data->{Totals}->{"${rej_action}UnknownUser"}++;
+                $data->{Counts}->{"${rej_action}UnknownUser"}{"\u$table"}{"\L$recip"}{$from}++;
             } else { # check_recipient_access
                 #TD NOQUEUE: reject: RCPT from example.com[10.0.0.1]: 454 4.7.1 <to@sample.net>: Recipient address rejected: Access denied; from=<from@example.com> to=<to@sample.net> proto=SMTP helo=<example.com>
                 #TD NOQUEUE: reject_warning: RCPT from example.com[10.0.0.1]: 454 4.7.1 <to@sample.net>: Recipient address rejected: Access denied; from=<from@example.com> to=<to@sample.net> proto=SMTP helo=<example.com>
@@ -592,8 +688,8 @@ sub handle_QID_reject {
                     $reason = 'undeliverable address: remote host rejected recipient';
                 }
                 
-                $Totals{"${rej_action}Recip"}++;
-                $Counts{"${rej_action}Recip"}{"\u$reason"}{"\L$recip"}{formathost($hostip,$host)}++;
+                $data->{Totals}->{"${rej_action}Recip"}++;
+                $data->{Counts}->{"${rej_action}Recip"}{"\u$reason"}{"\L$recip"}{formathost($hostip,$host)}++;
             }
         }
         
@@ -601,8 +697,8 @@ sub handle_QID_reject {
             #TD NOQUEUE: reject: RCPT from example.com[192.168.0.1]: 554 <to@sample.net>: Relay access denied; from=<from@example.com> to=<to@sample.net> proto=SMTP helo=<example.com>
             #TD NOQUEUE: reject_warning: RCPT from example.com[192.168.0.1]: 554 <to@sample.net>: Relay access denied; from=<from@example.com> to=<to@sample.net> proto=SMTP helo=<example.com>
             # print "host: \"$host\", hostip: \"$hostip\", To: \"$to\"\n";
-            $Totals{"${rej_action}Relay"}++;
-            $Counts{"${rej_action}Relay"}{formathost($hostip,$host)}{$to}++;
+            $data->{Totals}->{"${rej_action}Relay"}++;
+            $data->{Counts}->{"${rej_action}Relay"}{formathost($hostip,$host)}{$to}++;
         }
         
         elsif ( my ($from,$reason) =  ($p5 =~ /^<(.*)>: Sender address rejected: (.*);/o ) ){
@@ -614,8 +710,8 @@ sub handle_QID_reject {
             if ($reason =~ /^undeliverable address: host ([^[]+)\[($re_IP)\] said:/o) {
                 $reason = 'undeliverable address: remote host rejected sender';
             }
-            $Totals{"${rej_action}Sender"}++;
-            $Counts{"${rej_action}Sender"}{"\u$reason"}{formathost($hostip,$host)}{$from}++;
+            $data->{Totals}->{"${rej_action}Sender"}++;
+            $data->{Counts}->{"${rej_action}Sender"}{"\u$reason"}{formathost($hostip,$host)}{$from}++;
         }
         
         elsif ( my ($reason,$from,$recip) = ($p5 =~ /^<[^[]+\[$re_IP\]>: Client host rejected: (.*); from=<(.*)> to=<(.*)> proto=/o ) ){
@@ -623,8 +719,8 @@ sub handle_QID_reject {
             #TD NOQUEUE: reject_warning: RCPT from sample.net[10.0.0.1]: 554 <sample.net[10.0.0.1]>: Client host rejected: Access denied; from=<from@sample.net> to=<to@example.com> proto=SMTP helo=<friend> 
             #TD NOQUEUE: reject: RCPT from sample.net[10.0.0.1]: 450 Client host rejected: cannot find your hostname, [10.0.0.1]; from=<from@sample.net> to=<to@example.com> proto=ESMTP helo=<sample.net>
             $from = "<>"		if ($from =~ /^$/);
-            $Totals{"${rej_action}Client"}++;
-            $Counts{"${rej_action}Client"}{"\u$reason"}{formathost($hostip,$host)}{"\L$recip"}{$from}++;
+            $data->{Totals}->{"${rej_action}Client"}++;
+            $data->{Counts}->{"${rej_action}Client"}{"\u$reason"}{formathost($hostip,$host)}{"\L$recip"}{$from}++;
         }
         
         elsif ( (my $p6) = ($p5 =~ /^Client host rejected: cannot find your (.*)$/o ) ){
@@ -632,15 +728,15 @@ sub handle_QID_reject {
                 #TD NOQUEUE: reject: RCPT from unknown[10.0.0.1]: 450 Client host rejected: cannot find your hostname, [10.0.0.1]; from=<from@example.com> to=<to@sample.net> proto=ESMTP helo=<example.com> 
                 #TD NOQUEUE: reject_warning: RCPT from unknown[10.0.0.1]: 450 Client host rejected: cannot find your hostname, [10.0.0.1]; from=<from@example.com> to=<to@sample.net> proto=ESMTP helo=<example.com> 
                 $from = "<>"		if ($from =~ /^$/);
-                $Totals{"${rej_action}UnknownClient"}++;
-                $Counts{"${rej_action}UnknownClient"}{$host}{$helo}{$from}{"\L$recip"}++;
+                $data->{Totals}->{"${rej_action}UnknownClient"}++;
+                $data->{Counts}->{"${rej_action}UnknownClient"}{$host}{$helo}{$from}{"\L$recip"}++;
                 # reject_unknown_reverse_client_hostname (no DNS PTR record for client's IP)
             } elsif ( $p6 =~ /^reverse hostname, \[$re_IP\]/o ){
                 #TD NOQUEUE: reject: RCPT from unknown[192.168.0.1]: 550 5.7.1 Client host rejected: cannot find your reverse hostname, [192.168.0.1]
-                $Totals{"${rej_action}UnknownReverseClient"}++;
-                $Counts{"${rej_action}UnknownReverseClient"}{$host}++
+                $data->{Totals}->{"${rej_action}UnknownReverseClient"}++;
+                $data->{Counts}->{"${rej_action}UnknownReverseClient"}{$host}++
             } else {
-                inc_unmatched('rejectclienthost', $OrigLine);
+                $data->{UNMATCHED}->{'rejectclienthost'}->{$line}++
             }
         }
         
@@ -648,28 +744,28 @@ sub handle_QID_reject {
             # Note: similar code below: search RejectRBL
             #TD NOQUEUE: reject: RCPT from example.com[10.0.0.1]: 554 5.7.1 Service unavailable; Client host [10.0.0.1] blocked using sbl-xbl.spamhaus.org; http://www.spamhaus.org/query/bl?ip=10.0.0.1; from=<from@example.com> to=<to@sample.net> proto=ESMTP helo=<friend>
             #TD NOQUEUE: reject_warning: RCPT from example.com[10.0.0.1]: 554 5.7.1 Service unavailable; Client host [10.0.0.1] blocked using sbl-xbl.spamhaus.org; http://www.spamhaus.org/query/bl?ip=10.0.0.1; from=<from@example.com> to=<to@sample.net> proto=ESMTP helo=<friend>
-            $Totals{"${rej_action}RBL"}++;
+            $data->{Totals}->{"${rej_action}RBL"}++;
             if ($reason =~ /^$/) {
-                $Counts{"${rej_action}RBL"}{$site}{formathost($hostip,$host)}++;
+                $data->{Counts}->{"${rej_action}RBL"}{$site}{formathost($hostip,$host)}++;
             } else {
-                $Counts{"${rej_action}RBL"}{$site}{formathost($hostip,$host)}{$reason}++;
+                $data->{Counts}->{"${rej_action}RBL"}{$site}{formathost($hostip,$host)}{$reason}++;
             }
         }
         
         elsif ( my ($reason,$helo) = ($p5 =~ /^<.*>: Helo command rejected: (.*);.* helo=<(.*)>$/o ) ){
             #TD NOQUEUE: reject: RCPT from sample.net[10.0.0.1]: 454 4.7.1 <localhost>: Helo command rejected: Access denied; from=<from@sample.net> to=<to@example.com> proto=SMTP helo=<localhost>
             #TD NOQUEUE: reject_warning: RCPT from sample.net[10.0.0.1]: 454 4.7.1 <localhost>: Helo command rejected: Access denied; from=<from@sample.net> to=<to@example.com> proto=SMTP helo=<localhost>
-            $Totals{"${rej_action}Helo"}++;
-            $Counts{"${rej_action}Helo"}{$reason}{formathost($hostip,$host)}{"$helo"}++;
+            $data->{Totals}->{"${rej_action}Helo"}++;
+            $data->{Counts}->{"${rej_action}Helo"}{$reason}{formathost($hostip,$host)}{"$helo"}++;
         }
         
         elsif ( my ($from,$to) = ($p5 =~ /^Insufficient system storage; from=<([^>]*)> to=<([^>]+)>/o ) ){
             #TD NOQUEUE: reject: RCPT from example.com[192.168.0.1]: 452 Insufficient system storage; from=<from@example.com> to=<to@sample.net> 
             #TD NOQUEUE: reject_warning: RCPT from example.com[192.168.0.1]: 452 Insufficient system storage; from=<from@example.com> to=<to@sample.net> 
             $from = "<>"		if ($from =~ /^$/);
-            $Totals{"${rej_action}InsufficientSpace"}++;
-            $Counts{"${rej_action}InsufficientSpace"}{formathost($hostip,$host)}{$to}{$from}++;
-            $Totals{'WarnInsufficientSpace'}++;    # to show in Warnings section
+            $data->{Totals}->{"${rej_action}InsufficientSpace"}++;
+            $data->{Counts}->{"${rej_action}InsufficientSpace"}{formathost($hostip,$host)}{$to}{$from}++;
+            $data->{Totals}->{'WarnInsufficientSpace'}++;    # to show in Warnings section
         }
         
         elsif ( my ($from,$to) = ($p5 =~ /^Server configuration (?:error|problem); from=<([^>]*)> to=<([^>]+)>/o ) ){
@@ -677,29 +773,30 @@ sub handle_QID_reject {
             #TD NOQUEUE: reject_warning: RCPT from example.com[10.0.0.1]: 451 4.3.5 Server configuration error; from=<from@example.com> to=<user@sample.net> proto=ESMTP helo=<example.com>
             #TD NOQUEUE: reject: RCPT from sample.net[192.168.0.1]: 450 Server configuration problem; from=<from@sample.net> to=<to@example.com> proto=ESMTP helo=<sample.net>
             $from = "<>"		if ($from =~ /^$/);
-            $Totals{"${rej_action}ConfigError"}++;
-            $Counts{"${rej_action}ConfigError"}{formathost($hostip,$host)}{$to}{$from}++;
-            $Totals{'WarnConfigError'}++;          # to show in Warnings section
+            $data->{Totals}->{"${rej_action}ConfigError"}++;
+            $data->{Counts}->{"${rej_action}ConfigError"}{formathost($hostip,$host)}{$to}{$from}++;
+            $data->{Totals}->{'WarnConfigError'}++;          # to show in Warnings section
             # This would capture all other rejects, but I think it might be more useful to add
             # additional capture sections based on user reports of uncapture lines.
             #
             #} elsif ( ($reason) = ($p5 =~ /^([^;]+);/o)) {
-            #  $Totals{"${rej_action}Other"}++;
-            #  $Counts{"${rej_action}Other"}{$reason}++;
+            #  $data->{Totals}->{"${rej_action}Other"}++;
+            #  $data->{Counts}->{"${rej_action}Other"}{$reason}++;
         }
         
         else {
-            inc_unmatched('rejectother', $OrigLine);
+            $data->{UNMATCHED}->{'rejectother'}->{$line}++;
         }
     } # end of $re_QID: reject: RCPT from ...
     
     # $re_QID: reject: body ...
     # $re_QID: reject: header ...
-    elsif ( ($reason,$host,$to,$reason2) = ($p3 =~ /^(?:header|body) (.*) from ([^;]+); from=<(?:[^ ]*)>(?: to=<([^>]*)>)?(?: proto=[^ ]* helo=<[^ ]*>)?: (.*)$/o ) ){
+    elsif ( my ($reason,$host,$to,$reason2) = ($p3 =~ /^(?:header|body) (.*) from ([^;]+); from=<(?:[^ ]*)>(?: to=<([^>]*)>)?(?: proto=[^ ]* helo=<[^ ]*>)?: (.*)$/o ) ){
         #TD 9804DB31C2: reject: header To: <user@example.com> from sample.net[192.168.0.1]; from=<bogus@anywhere.com> to=<user@example.com> proto=ESMTP helo=<anywhere.com>: Any reason
         #TD 831C2C2E0D: reject: body Quality Replica watches!!! from example.com[192.168.0.1]; from=<user@example.com> to=<recip@sample.net> proto=SMTP helo=<example.com>: 5.7.1 Spam: Watches
         #TD 26B6AC2DB5: reject: body xx Subject: Cheapest Viagra and Cialis you can find! from local; from=<root@localhost>: 5.7.1 Spam: Drugs
         # Note: reject_warning does not seem to occur
+        my $hostip;
         if ($host =~ /^local$/) {
             $hostip = '127.0.0.1';
         } elsif ($host =~ /([^[]+)\[($re_IP)\]/) {
@@ -707,12 +804,12 @@ sub handle_QID_reject {
         }
         $reason =~ s/\s+/ /g;
         if ($p3 =~ /^body/) {
-            $Totals{'RejectBody'}++;
-            $Counts{'RejectBody'}{$reason2}{$to}{formathost($hostip,$host)}{"$reason"}++;
+            $data->{Totals}->{'RejectBody'}++;
+            $data->{Counts}->{'RejectBody'}{$reason2}{$to}{formathost($hostip,$host)}{"$reason"}++;
         } else {
             #print "reason: \"$reason\", host: \"$host\", hostip: \"$hostip\", to: \"$to\", reason2: \"$reason2\"\n";
-            $Totals{'RejectHeader'}++;
-            $Counts{'RejectHeader'}{$reason2}{$to}{formathost($hostip,$host)}{"$reason"}++;
+            $data->{Totals}->{'RejectHeader'}++;
+            $data->{Counts}->{'RejectHeader'}{$reason2}{$to}{formathost($hostip,$host)}{"$reason"}++;
         }
     }
     
@@ -723,8 +820,8 @@ sub handle_QID_reject {
         # Note: reject_warning does not seem to occur
         #TD NOQUEUE: reject: MAIL from localhost[127.0.0.2]: 552 Message size exceeds fixed limit; proto=ESMTP helo=<localhost> 
         #TD NOQUEUE: reject: MAIL from example.com[192.168.0.2]: 452 4.3.4 Message size exceeds fixed limit; proto=ESMTP helo=<example.com>
-        $Totals{'RejectSize'}++;
-        $Counts{'RejectSize'}{formathost($hostip,$host)}{'unknown'}++;
+        $data->{Totals}->{'RejectSize'}++;
+        $data->{Counts}->{'RejectSize'}{formathost($hostip,$host)}{'unknown'}++;
     }
     
     # $re_QID: reject: CONNECT from ...
@@ -732,10 +829,10 @@ sub handle_QID_reject {
         if ( my ($host,$hostip,$dsn,$reason) = ($p4 =~ /([^[]+)\[($re_IP)\]: ($re_DSN) <.*>: Client host rejected: ([^;]*);/o ) ){
             #TD NOQUEUE: reject: CONNECT from unknown[192.168.0.1]: 503 5.5.0 <unknown[192.168.0.1]>: Client host rejected: Improper use of SMTP command pipelining; proto=SMTP
             $rej_action = "Temp$rej_action" if ($dsn =~ /^4/);
-            $Totals{"${rej_action}Client"}++;
-            $Counts{"${rej_action}Client"}{"\u$reason"}{formathost($hostip,$host)}{""}++;    # XXX currently need to keep same key depth - add CONNECT key to do so
+            $data->{Totals}->{"${rej_action}Client"}++;
+            $data->{Counts}->{"${rej_action}Client"}{"\u$reason"}{formathost($hostip,$host)}{""}++;    # XXX currently need to keep same key depth - add CONNECT key to do so
         } else {
-            inc_unmatched('connfrom', $OrigLine);
+            $data->{UNMATCHED}->{'connfrom'}->{$line}++;
         }
     }
     
@@ -747,20 +844,21 @@ sub handle_QID_reject {
         #TD NOQUEUE: reject: VRFY from example.com[10.0.0.1]: 554 5.7.1 Service unavailable; Client host [10.0.0.1] blocked using zen.spamhaus.org; http://www.spamhaus.org/query/bl?ip=10.0.0.1; to=<u> proto=SMTP
         if ( my ($host,$hostip,$dsn,$reason) = ($p4 =~ /([^[]+)\[($re_IP)\]: ($re_DSN) (?:<.*>: )?([^;]*);/o ) ){
             $rej_action = "Temp$rej_action" if ($dsn =~ /^4/);
-            $Totals{"${rej_action}Verify"}++;
-            $Counts{"${rej_action}Verify"}{"\u$reason"}{formathost($hostip,$host)}++;
+            $data->{Totals}->{"${rej_action}Verify"}++;
+            $data->{Counts}->{"${rej_action}Verify"}{"\u$reason"}{formathost($hostip,$host)}++;
         } else {
-            inc_unmatched('vrfyfrom', $OrigLine);
+            $data->{UNMATCHED}->{'vrfyfrom'}->{$line}++;
         }
     }
     
     else {
-        inc_unmatched('rejectlast', $OrigLine);
+        $data->{UNMATCHED}->{'rejectlast'}->{$line}++;
     }
 }
 
 sub handle_QID_sfbdu { # sent, forwarded, bounced, softbounce, deferred, (un)deliverable
-    my ($self, $line, $to, $origto, $relay, $DDD, $status, $reason) = @_;
+    my ($self, $line, $subprog, $qid, $to, $origto, $relay, $DDD, $status, $reason) = @_;
+    my $data = $self->data;
     
     #TD 552B6C20E: to=<to@sample.com>, relay=mail.example.net[10.0.0.1]:25, delay=1021, delays=1020/0.04/0.56/0.78, dsn=2.0.0, status=sent (250 Ok: queued as 6EAC4719EB)
     #TD DD925BBE2: to=<to@example.net>, orig_to=<to-ext@example.net>, relay=mail.example.net[2001:dead:beef::1], delay=2, status=sent (250 Ok: queued as 5221227246)
@@ -772,13 +870,14 @@ sub handle_QID_sfbdu { # sent, forwarded, bounced, softbounce, deferred, (un)del
     
     # If recipient_delimiter is set, break localpart into user + extension
     # and save localpart in origto if origto is empty
-    if ($Opts{'recipient_delimiter'} and $localpart =~ /\Q$Opts{'recipient_delimiter'}\E/o) {
+    # $Opts{'recipient_delimiter'} = '+'
+    if ( $localpart =~ /\Q+\E/o ){
         # special cases: never split mailer-daemon or double-bounce
         # or owner- or -request if delim is "-" (dash).
         unless (
         ($localpart =~ /^(?:mailer-daemon|double-bounce)$/i) or
-        ($Opts{'recipient_delimiter'} eq '-' and $localpart =~ /^owner-.|.-request$/i) ){
-            my ($user,$extension) = split (/$Opts{'recipient_delimiter'}/o, $localpart, 2);
+        ('+' eq '-' and $localpart =~ /^owner-.|.-request$/i) ){
+            my ($user,$extension) = split (/\+/o, $localpart, 2);
             $origto = $localpart    if ($origto =~ /^$/);
             $localpart = $user;
         }
@@ -793,22 +892,22 @@ sub handle_QID_sfbdu { # sent, forwarded, bounced, softbounce, deferred, (un)del
     ### sent
     if ($status =~ /^sent$/) {
         if ($reason =~ /forwarded as /) {
-            $Totals{'MsgsForwarded'}++;
-            $Counts{'MsgsForwarded'}{$domainpart}{$localpart}{$origto}++;
-        }else {
-            if ($postfix_svc =~ /^lmtp$/) {
-                $Totals{'MsgsSentLmtp'}++;
-                $Counts{'MsgsSentLmtp'}{$domainpart}{$localpart}{$origto}++;
-            } elsif ($postfix_svc =~ /^smtp$/) {
-                $Totals{'MsgsSent'}++;
-                $Counts{'MsgsSent'}{$domainpart}{$localpart}{$origto}++;
+            $data->{Totals}->{'MsgsForwarded'}++;
+            $data->{Counts}->{'MsgsForwarded'}{$domainpart}{$localpart}{$origto}++;
+        } else {
+            if ($subprog =~ /^lmtp$/) {
+                $data->{Totals}->{'MsgsSentLmtp'}++;
+                $data->{Counts}->{'MsgsSentLmtp'}{$domainpart}{$localpart}{$origto}++;
+            } elsif ($subprog =~ /^smtp$/) {
+                $data->{Totals}->{'MsgsSent'}++;
+                $data->{Counts}->{'MsgsSent'}{$domainpart}{$localpart}{$origto}++;
             } else { # virtual, command, ...
-                $Totals{'MsgsDelivered'}++;
-                $Counts{'MsgsDelivered'}{$domainpart}{$localpart}{$origto}++;
+                $data->{Totals}->{'MsgsDelivered'}++;
+                $data->{Counts}->{'MsgsDelivered'}{$domainpart}{$localpart}{$origto}++;
             }
         }
-        if ( exists $Qids{$qid} and exists $Qids{$qid}{'size'} ){
-            $Totals{'BytesDelivered'} += $Qids{$qid}{'size'};
+        if ( exists $data->{Qids}->{$qid} and exists $data->{Qids}->{$qid}{'size'} ){
+            $data->{Totals}->{'BytesDelivered'} += $data->{Qids}->{$qid}{'size'};
         }
     }
     
@@ -830,14 +929,14 @@ sub handle_QID_sfbdu { # sent, forwarded, bounced, softbounce, deferred, (un)del
         ### local bounce
         # XXX local v. remote bounce seems iffy, relative
         if ($relay =~ /^(?:none|local|virtual|avcheck|maildrop|127\.0\.0\.1)/) {
-            $Totals{'BounceLocal'}++;
-            $Counts{'BounceLocal'}{get_dsn_msg($dsn)}{$to}{"\u$reason"}++;
+            $data->{Totals}->{'BounceLocal'}++;
+            $data->{Counts}->{'BounceLocal'}{get_dsn_msg($dsn)}{$to}{"\u$reason"}++;
         }
         ### remote bounce
         else {
             my ($reply,$fmtdhost) = cleanhostreply($reason,$relay,$to,$domainpart);
-            $Totals{'BounceRemote'}++;
-            $Counts{'BounceRemote'}{get_dsn_msg($dsn)}{$domainpart}{$localpart}{$fmtdhost}{$reply}++;
+            $data->{Totals}->{'BounceRemote'}++;
+            $data->{Counts}->{'BounceRemote'}{get_dsn_msg($dsn)}{$domainpart}{$localpart}{$fmtdhost}{$reply}++;
         }
     }
     
@@ -857,30 +956,30 @@ sub handle_QID_sfbdu { # sent, forwarded, bounced, softbounce, deferred, (un)del
         #TD 0DA72B7035: to=<to@example.com>, relay=example.com[10.0.0.1]:25, delay=97, delays=0.03/0/87/10, dsn=4.0.0, status=deferred (host example.com[10.0.0.1] said: 450 <to@example.com>: Recipient address rejected: undeliverable address: User unknown in virtual alias table (in reply to RCPT TO command))
         my ($reply,$fmtdhost) = cleanhostreply($reason,$relay,$to,$domainpart);
         
-        if ( $DeferredByQid{$qid}++ == 0 ){
-            $Totals{'MsgsDeferred'}++;
+        if ( $data->{DeferredByQid}->{$qid}++ == 0 ){
+            $data->{Totals}->{'MsgsDeferred'}++;
         }
-        $Totals{'Deferrals'}++;
-        $Counts{'Deferrals'}{get_dsn_msg($dsn)}{$reply}{$domainpart}{$localpart}{$fmtdhost}++;
+        $data->{Totals}->{'Deferrals'}++;
+        $data->{Counts}->{'Deferrals'}{get_dsn_msg($dsn)}{$reply}{$domainpart}{$localpart}{$fmtdhost}++;
     }
     
     elsif ($status =~ /^undeliverable$/) {
         #TD B54D220BFC: to=<u@example.com>, relay=sample.com[10.0.0.1], delay=0, dsn=5.0.0, status=undeliverable (host sample.com[10.0.0.1] refused to talk to me: 554 5.7.1 example.com Connection not authorized) 
         #TD 8F699C2EA6: to=<u@example.com>, relay=virtual, delay=0.14, delays=0.06/0/0/0.08, dsn=5.1.1, status=undeliverable (unknown user: "u@example.com")
-        $Totals{'Undeliverable'}++;
-        $Counts{'Undeliverable'}{$reason}{$origto ? "$to ($origto)" : "$to"}++;
+        $data->{Totals}->{'Undeliverable'}++;
+        $data->{Counts}->{'Undeliverable'}{$reason}{$origto ? "$to ($origto)" : "$to"}++;
     }
     
     elsif ($status =~ /^deliverable$/) {
         # sendmail -bv style deliverable reports
         #TD ED862C2EA6: to=<u@example.com>, relay=virtual, delay=0.09, delays=0.03/0/0/0.06, dsn=2.0.0, status=deliverable (delivers to maildir)
-        $Totals{'Deliverable'}++;
-        $Counts{'Deliverable'}{$reason}{$origto ? "$to ($origto)" : "$to"}++;
+        $data->{Totals}->{'Deliverable'}++;
+        $data->{Counts}->{'Deliverable'}{$reason}{$origto ? "$to ($origto)" : "$to"}++;
     }
     
     else {
         # keep this as the last condition in this else clause
-        inc_unmatched('unknownstatus', $OrigLine);
+        $data->{UNMATCHED}->{'unknownstatus'}->{$line}++;
     }
 }
 

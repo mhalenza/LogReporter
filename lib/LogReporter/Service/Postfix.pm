@@ -486,7 +486,7 @@ sub handle_QID {
     
     ### sent, forwarded, bounced, softbounce, deferred, (un)deliverable
     elsif ( my ($to,$origto,$relay,$DDD,$status,$reason) = ($p2 =~ /^to=<([^>]*)>,(?: orig_to=\<([^>]*)>,)? relay=([^ ]*).*, ($re_DDD), status=([^ ]+) (.*)$/o  ) ){
-        $self->process_sfbdu($line,$subprog,$qid,$to,$origto,$relay,$DDD,$status,$reason);
+        $self->handle_QID_sfbdu($line,$subprog,$qid,$to,$origto,$relay,$DDD,$status,$reason);
     }
     
     # XXX don't care about this anymore; MsgsAccepted are counted with from= lines

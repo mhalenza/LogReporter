@@ -6,7 +6,7 @@ use warnings;
 sub formathost {
    my ($hostip, $hostname) = @_;
    return undef  if ($hostip =~ /^$/ and $hostname =~ /^$/);
-   return sprintf "%-$Opts{'ipaddr_width'}s  %s", $hostip, lc $hostname;
+   return sprintf "%-15s  %s", $hostip, lc $hostname;
 }
 
 

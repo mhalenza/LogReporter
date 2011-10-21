@@ -8,6 +8,7 @@ use LogReporter::Service::Postfix::Functions;
 
 override init => sub {
     my ($self) = @_;
+    super();
     my $data = $self->data;
     $data->{UNMATCHED} = {};
     $data->{Totals} = {};

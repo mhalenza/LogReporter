@@ -1,15 +1,18 @@
-package LogReporter::Service::Postfix;
+package LogReporter::Service::Postfix::Constants;
 use strict;
 use warnings;
 
-my $re_IP      = '(?:(?:::(?:ffff:|FFFF:)?)?(?:\d{1,3}\.){3}\d{1,3}|(?:[\da-fA-F]{0,4}:){2}(?:[\da-fA-F]{0,4}:){0,5}[\da-fA-F]{0,4})';
-my $re_DSN     = '(?:(?:\d{3})?(?: ?\d\.\d\.\d)?)';
-my $re_QID     = '[A-Z\d]+';
-my $re_DDD     = '(?:(?:conn_use=\d+ )?delay=-?[\d.]+(?:, delays=[\d\/.]+)?(?:, dsn=[\d.]+)?)';
+use Exporter 'import';
+our @EXPORT = (qw/$re_IP $re_DSN $re_QID $re_DDD %dsn_codes/);
+
+our $re_IP      = '(?:(?:::(?:ffff:|FFFF:)?)?(?:\d{1,3}\.){3}\d{1,3}|(?:[\da-fA-F]{0,4}:){2}(?:[\da-fA-F]{0,4}:){0,5}[\da-fA-F]{0,4})';
+our $re_DSN     = '(?:(?:\d{3})?(?: ?\d\.\d\.\d)?)';
+our $re_QID     = '[A-Z\d]+';
+our $re_DDD     = '(?:(?:conn_use=\d+ )?delay=-?[\d.]+(?:, delays=[\d\/.]+)?(?:, dsn=[\d.]+)?)';
 
 # RFC 3463 DSN Codes
 # http://www.faqs.org/rfcs/rfc3463.html
-my %dsn_codes = (
+our %dsn_codes = (
     class => {
         "2" => "Success",
         "4" => "Persistent Transient Failure",

@@ -79,8 +79,22 @@ override finalize => sub {
     
     $Totals->{'TotalAcceptPlusReject'} = $Totals->{'MsgsAccepted'} + $Totals->{'TotalRejects'};
     
-    
+    preprocessTree($self->data->{Counts});
 };
+
+sub preprocessTree {
+    my ($root) = @_;
+    if ( ref($root) eq 'HASH' ){
+        my $tot = 0;
+        foreach my $key (keys %$root){
+            $tot += preprocessTree($root->{$key});
+        }
+        $root->{XXX_total} = $tot;
+        return $tot;
+    } else {
+        return $root;
+    }
+}
 
 override process_line => sub {
     my ($self, $line, $meta) = @_;

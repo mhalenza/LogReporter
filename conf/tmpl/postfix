@@ -1,19 +1,5 @@
-{ MACRO p1(key,str) BLOCK -}
-{ IF d.Totals.exists(key) }{ IF d.Totals.$key > 0 }  {FILTER format('%3d')}{ d.Totals.$key }{END}  {str}
-{ END }{ END }{ END -}
-{ MACRO p2(key,str,divkey) BLOCK -}
-{ IF d.Totals.exists(key) }{ IF d.Totals.$key > 0 }  {FILTER format('%3d')}{ d.Totals.$key }{END}  {FILTER format('%6.2f')}{ 100 * d.Totals.$key / d.Totals.$divkey }{END}%   {str}
-{ END }{ END }{ END -}
-{ MACRO unitize(n) BLOCK -}{ fmt = '' -}
-{    IF n >= 1099511627776 }{FILTER format('%.3fT')}{ n / 1099511627776 }{END-}
-{ ELSIF n >= 1073741824 }{FILTER format('%.3fG')}{ n / 1073741824 }{END-}
-{ ELSIF n >= 1048576 }{FILTER format('%.3fM')}{ n / 1048576 }{END-}
-{ ELSIF n >= 1024 }{FILTER format('%.3fK')}{ n / 1024 }{END-}
-{ ELSE }{FILTER format('%d ')}{n}{END-}
-{ END -}
-{ END -}
-Summary
-=====
+{ tmp = PROCESS postfix_macros -}
+***** Summary ********************
 { p1("PanicError",             "*Panic:   General panic") -}
 { p1('FatalFileTooBig',        "*Fatal:   Message file too big") -}
 { p1('FatalConfigError',       "*Fatal:   Configuration error") -}
@@ -158,3 +144,115 @@ Summary
 { p1('PostfixStop',             "Postfix stop") -}
 { p1('PostfixRefresh',          "Postfix refresh") -}
 { p1('PostfixWaiting',          "Postfix waiting to terminate") -}
+
+
+***** Detailed ********************
+Rejects
+=====
+{ p3(d,'RejectRelay',               "Reject relay denied") -}
+{ p3(d,'RejectHelo',                "Reject HELO/EHLO") -}
+{ p3(d,'RejectUnknownUser',         "Reject unknown user") -}
+{ p3(d,'RejectRecip',               "Reject recipient address") -}
+{ p3(d,'RejectSender',              "Reject sender address") -}
+{ p3(d,'RejectClient',              "Reject client host") -}
+{ p3(d,'RejectUnknownClient',       "Reject unknown client host") -}
+{ p3(d,'RejectUnknownReverseClient',"Reject unknown reverse client host",'TotalRejects') -}
+{ p3(d,'RejectRBL',                 "Reject RBL") -}
+{ p3(d,'RejectHeader',              "Reject header") -}
+{ p3(d,'RejectBody',                "Reject body") -}
+{ p3(d,'RejectSize',                "Reject message size") -}
+{ p3(d,'RejectMilter',              "Reject milter") -}
+{ p3(d,'RejectInsufficientSpace',   "Reject insufficient space") -}
+{ p3(d,'RejectConfigError',         "Reject server configuration error") -}
+{ p3(d,'RejectVerify',              "Reject VRFY") -}
+
+Temporary Rejects
+=====
+{ p3(d,'TempRejectRelay',               "4xx Reject relay denied") -}
+{ p3(d,'TempRejectHelo',                "4xx Reject HELO/EHLO") -}
+{ p3(d,'TempRejectUnknownUser',         "4xx Reject unknown user") -}
+{ p3(d,'TempRejectRecip',               "4xx Reject recipient address") -}
+{ p3(d,'TempRejectSender',              "4xx Reject sender address") -}
+{ p3(d,'TempRejectClient',              "4xx Reject client host") -}
+{ p3(d,'TempRejectUnknownClient',       "4xx Reject unknown client host") -}
+{ p3(d,'TempRejectUnknownReverseClient',"4xx Reject unknown reverse client host") -}
+{ p3(d,'TempRejectRBL',                 "4xx Reject RBL") -}
+{ p3(d,'TempRejectHeader',              "4xx Reject header") -}
+{ p3(d,'TempRejectBody',                "4xx Reject body") -}
+{ p3(d,'TempRejectSize',                "4xx Reject message size") -}
+{ p3(d,'TempRejectMilter',              "4xx Reject milter") -}
+{ p3(d,'TempRejectInsufficientSpace',   "4xx Reject insufficient space") -}
+{ p3(d,'TempRejectConfigError',         "4xx Reject server configuration error") -}
+{ p3(d,'TempRejectVerify',              "4xx Reject VRFY") -}
+
+Reject with Warning
+=====
+{ p3(d,'RejectWarnRelay',                "Reject warning relay denied") -}
+{ p3(d,'RejectWarnHelo',                 "Reject warning HELO/EHLO") -}
+{ p3(d,'RejectWarnUnknownUser',          "Reject warning unknown user") -}
+{ p3(d,'RejectWarnRecip',                "Reject warning recipient address") -}
+{ p3(d,'RejectWarnSender',               "Reject warning sender address") -}
+{ p3(d,'RejectWarnClient',               "Reject warning client host") -}
+{ p3(d,'RejectWarnUnknownClient',        "Reject warning unknown client host") -}
+{ p3(d,'RejectWarnUnknownReverseCliend', "Reject warning unknown reverse client host") -}
+{ p3(d,'RejectWarnRBL',                  "Reject warning via RBL") -}
+{ p3(d,'RejectWarnInsufficientSpace',    "Reject warning insufficient space") -}
+{ p3(d,'RejectWarnConfigError',          "Reject warning server configuration error") -}
+{ p3(d,'RejectWarnVerify',               "Reject warning VRFY") -}
+
+Misc
+=====
+{ p3(d,'ConnectionInbound',       "Connections made") -}
+{ p3(d,'ConnectionLost',          "Connections lost") -}
+{ p3(d,'Disconnection',           "Disconnections") -}
+{ p3(d,'RemovedFromQueue',        "Removed from queue") -}
+{ p3(d,'MsgsDelivered',           "Delivered") -}
+{ p3(d,'MsgsSent',                "Sent via SMTP") -}
+{ p3(d,'MsgsSentLmtp',            "Sent via LMTP") -}
+{ p3(d,'MsgsForwarded',           "Forwarded") -}
+{ p3(d,'MsgsResent',              "Resent") -}
+{ p3(d,'MsgsDeferred',            "Deferred") -}
+{ p3(d,'Deferrals',               "Deferrals") -}
+{ p3(d,'BounceLocal',             "Bounce (local)") -}
+{ p3(d,'BounceRemote',            "Bounce (remote)") -}
+{ p3(d,'Filtered',                "Filtered") -}
+{ p3(d,'Discarded',               "Discarded") -}
+{ p3(d,'Requeued',                "Requeued messages") -}
+{ p3(d,'ReturnedToSender',        "Expired and returned to sender") -}
+{ p3(d,'SenderDelayNotification', "Sender delay notification") -}
+{ p3(d,'DSNDelivered',            "DSNs delivered") -}
+{ p3(d,'DSNUndelivered',          "DSNs undeliverable") -}
+{ p3(d,'PolicySPF',               "Policy SPF") -}
+{ p3(d,'PolicydWeight',           "Policyd-weight") -}
+
+{ p3(d,'ConnectToFailure',        "Connection failure (outbound)") -}
+{ p3(d,'TimeoutInbound',          "Timeout (inbound)") -}
+{ p3(d,'HeloError',               "HELO/EHLO conversations errors") -}
+{ p3(d,'IllegalAddrSyntax',       "Illegal address syntax in SMTP command") -}
+{ p3(d,'WarningHeader',           "Header warning") -}
+{ p3(d,'ReleasedFromHold',        "Released from hold") -}
+{ p3(d,'RBLError',                "RBL lookup error") -}
+{ p3(d,'MxError',                 "MX error") -}
+{ p3(d,'NumericHostname',         "Numeric hostname") -}
+{ p3(d,'SmtpConversationError',   "SMTP commands dialog error") -}
+{ p3(d,'TooManyErrors',           "Excessive errors in SMTP commands dialog") -}
+{ p3(d,'HostnameVerification',    "Hostname verification errors") -}
+{ p3(d,'HostnameValidationError', "Hostname validation error") -}
+{ p3(d,'Deliverable',             "Address is deliverable (sendmail -bv)") -}
+{ p3(d,'Undeliverable',           "Address is undeliverable (sendmail -bv)") -}
+{ p3(d,'TableChanged',            "Restarts due to lookup table change") -}
+{ p3(d,'PixWorkaround',           "Enabled PIX workaround") -}
+{ p3(d,'TlsServerConnect',        "TLS connections (server)") -}
+{ p3(d,'TlsClientConnect',        "TLS connections (client)") -}
+{ p3(d,'SaslAuth',                "SASL authenticated messages") -}
+{ p3(d,'SaslAuthRelay',           "SASL authenticated relayed messages") -}
+{ p3(d,'TlsUnverified',           "TLS certificate unverified") -}
+{ p3(d,'TlsOffered',              "Host offered TLS") -}
+{ IF d.UNMATCHED.size > 0 -}
+
+
+***** Unmatched Lines ********************
+{ FOREACH line IN d.UNMATCHED -}
+  { line }
+{ END -}
+{ END -}

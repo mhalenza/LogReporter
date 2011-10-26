@@ -4,6 +4,30 @@ use Moose;
 use namespace::autoclean;
 extends 'LogReporter::Service';
 
+has 'proc' => (
+    is => 'ro',
+    isa => 'Subref',
+    traits => ['Code'],
+    required => 1,
+    handles => {
+        callproc => 'execute',
+    },
+    default => sub {
+        return sub {
+            my ($d, $actionType, $interface, $fromip, $toip, $toport, $svc, $proto, $prefix) = @_;
+            # $ipt1->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{$prefix}++;
+            $d->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{$prefix}++;
+            $d->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{XXX}++;
+            $d->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{XXX_service} //= $svc;
+            $d->{$actionType}{$interface}{$fromip}{$toip}{$toport}{XXX}++;
+            $d->{$actionType}{$interface}{$fromip}{$toip}{XXX}++;
+            $d->{$actionType}{$interface}{$fromip}{XXX}++;
+            $d->{$actionType}{$interface}{XXX}++;
+            $d->{$actionType}{XXX}++;
+        };
+    },
+);
+
 my $iptables_fmt = qr/^
     (?<prefix>.*?)
     \s*
@@ -70,26 +94,10 @@ no warnings 'uninitialized';
         
         my $actionType = _lookupAction($prefix);
         #$prefix = "(${prefix}) " if ($prefix ne "");
-
-        # $ipt1->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{$prefix}++;
-        $self->data->{ipt1}->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{$prefix}++;
-        $self->data->{ipt1}->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{XXX}++;
-        $self->data->{ipt1}->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{XXX_service} //= _lookupService($toport,$proto);
-        $self->data->{ipt1}->{$actionType}{$interface}{$fromip}{$toip}{$toport}{XXX}++;
-        $self->data->{ipt1}->{$actionType}{$interface}{$fromip}{$toip}{XXX}++;
-        $self->data->{ipt1}->{$actionType}{$interface}{$fromip}{XXX}++;
-        $self->data->{ipt1}->{$actionType}{$interface}{XXX}++;
-        $self->data->{ipt1}->{$actionType}{XXX}++;
         
-        # $ipt2->{$actionType}{$interface}{$toport}{$proto}{$fromip}{$toip}{$prefix}++;
-        $self->data->{ipt2}->{$actionType}{$interface}{$toport}{$proto}{$fromip}{$toip}{$prefix}++;
-        $self->data->{ipt2}->{$actionType}{$interface}{$toport}{$proto}{$fromip}{$toip}{XXX}++;
-        $self->data->{ipt2}->{$actionType}{$interface}{$toport}{$proto}{$fromip}{XXX}++;
-        $self->data->{ipt2}->{$actionType}{$interface}{$toport}{$proto}{XXX}++;
-        $self->data->{ipt2}->{$actionType}{$interface}{$toport}{$proto}{XXX_service} //= _lookupService($toport,$proto);
-        $self->data->{ipt2}->{$actionType}{$interface}{$toport}{XXX}++;
-        $self->data->{ipt2}->{$actionType}{$interface}{XXX}++;
-        $self->data->{ipt2}->{$actionType}{XXX}++;
+        $self->callproc(
+          $self->data, $actionType, $interface, $fromip, $toip, $toport, _lookupService($toport,$proto), $proto, $prefix
+        );
     }
 };
 

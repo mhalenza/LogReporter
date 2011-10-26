@@ -1,8 +1,10 @@
 package LogReporter::Service::Iptables;
 use feature ':5.10';
 use Moose;
-use namespace::autoclean;
+#use namespace::autoclean; # turned off because it cleans up SortIP
 extends 'LogReporter::Service';
+use LogReporter::Util qw/SortIP/;
+no warnings 'misc';
 
 has 'proc' => (
     is => 'ro',
@@ -99,6 +101,40 @@ no warnings 'uninitialized';
           $self->data, $actionType, $interface, $fromip, $toip, $toport, _lookupService($toport,$proto), $proto, $prefix
         );
     }
+};
+
+override get_output => sub {
+    my ($self) = @_;
+    my $data = $self->data;
+    my $OUT = '';
+    
+    foreach my $prefix ( keys %{ $data } ){
+        next if $prefix eq 'XXX';
+        $OUT .= sprintf "%s\n", $prefix;
+        foreach my $toport ( keys %{ $data->{$prefix} } ){
+            next if $toport eq 'XXX';
+            foreach my $proto ( keys %{ $data->{$prefix}{$toport} } ){
+                next if $proto eq 'XXX';
+                
+                $OUT .= sprintf "  % 4d  Service %s (%s/%s)\n",
+                    $data->{$prefix}{$toport}{$proto}{XXX},
+                    $data->{$prefix}{$toport}{$proto}{XXX_service},
+                    $proto,
+                    $toport;
+                
+                foreach my $fromip ( sort SortIP keys %{ $data->{$prefix}{$toport}{$proto} } ){
+                    next if $fromip eq 'XXX';
+                    next if $fromip eq 'XXX_service';
+                    
+                    $OUT .= sprintf "  % 4d    %s\n",
+                        $data->{$prefix}{$toport}{$proto}{$fromip},
+                        $fromip;
+                }
+            }
+        }
+    }
+    
+    return $OUT;
 };
 
 1;

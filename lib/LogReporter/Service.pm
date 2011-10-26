@@ -47,5 +47,10 @@ sub get_data {
     return $self->data;
 }
 
+sub get_output {
+    my ($self) = @_;
+    return "";
+}
+
 
 1;

@@ -3,6 +3,7 @@ use MooseX::Singleton;
 use namespace::autoclean;
 use feature ':5.10';
 
+use LogReporter::Util;
 use LogReporter::Source;
 use LogReporter::Source::File;
 use LogReporter::Filter;
@@ -10,6 +11,7 @@ use LogReporter::Filter::Date;
 use LogReporter::Filter::ISO8601;
 use LogReporter::Filter::DateRange;
 use LogReporter::Service;
+
 use DateTime;
 use DateTime::Span;
 use Template;
@@ -141,17 +143,6 @@ sub _collect_output {
         POST_CHOMP => 1,
     );
     
-    my $svc_tt2 = Template->new(
-        INCLUDE_PATH => [
-            "$FindBin::Bin/../conf/tmpl/",
-        ],
-        START_TAG => '{',
-        END_TAG => '}',
-        PREPROCESS => 'HEADER',
-        POSTPROCESS => 'FOOTER',
-        STRICT => 1,
-    );
-    
     say "Collecting output";
     my $all_output;
     $tt2->process('MAIN_HEADER',{ conf => $self->config, START_TIME => $^T },\$all_output)
@@ -159,8 +150,7 @@ sub _collect_output {
     foreach my $service (values %{$self->_all_services}){
         $tt2->process('HEADER',{ svc => $service->name },\$all_output)
           or warn "HEADER process: ".$tt2->error();
-        $svc_tt2->process(lc($service->name), { d => $service->get_data }, \$all_output)
-          or warn lc($service->name) . " " . $svc_tt2->error();
+        $all_output .= $service->get_output();
         $tt2->process('FOOTER',{ svc => $service->name },\$all_output)
           or warn "FOOTER process: " . $tt2->error();
     }

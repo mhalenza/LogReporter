@@ -8,17 +8,6 @@ use Config::General;
 use Data::Dumper; #$Data::Dumper::Indent = 2;
 $|++;
 
-use Net::IPAddress::Util qw/IP/;
-$Template::Stash::LIST_OPS->{'ipsort'} = sub {
-    my $list = shift;
-    return map  { $_->[0] }
-    sort { $a->[1] cmp $b->[1] }
-    map  { [$_, IP($_)->normal_form()] }
-    grep { $_ !~ /^XXX/ }
-    @$list;
-};
-
-
 use FindBin;
 use lib "$FindBin::Bin/../lib";
 

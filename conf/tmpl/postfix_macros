@@ -17,7 +17,7 @@
 
 
 { MACRO printTree(depth,root,tot) BLOCK -}
-{ FOREACH key IN root.keys -}{ NEXT IF key.substr(0,3) == "XXX" -}
+{ FOREACH key IN root.keys.sort -}{ NEXT IF key.substr(0,3) == "XXX" -}
 { IF root.$key.hash.exists('value') -}{# it's a scalar -}
 { FILTER format('%3d')}{ root.$key }{END}  { FILTER repeat(depth) }  {END}{ key || "''" }
 { tot = tot + root.$key -}

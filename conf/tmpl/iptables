@@ -2,16 +2,16 @@
 {# d -> prefix  toport proto fromip -}
 { FOREACH prefix IN d.keys -}
     {- NEXT IF prefix == 'XXX' -}
-{ prefix } ------
-{ FOREACH toport IN d.$prefix.keys -}
+{ prefix }
+{ FOREACH toport IN d.$prefix.keys.nsort -}
     {- NEXT IF toport == 'XXX' -}
-{ FOREACH proto IN d.$prefix.$toport.keys -}
+{ FOREACH proto IN d.$prefix.$toport.keys.sort -}
     {- NEXT IF proto == 'XXX' -}
-  Service { d.$prefix.$toport.$proto.XXX_service } ({ proto }/{ toport })  - { d.$prefix.$toport.$proto.XXX }
-{ FOREACH fromip IN d.$prefix.$toport.$proto.keys -}
+  {FILTER format('% 4d')}{ d.$prefix.$toport.$proto.XXX }{END}  Service { d.$prefix.$toport.$proto.XXX_service } ({ proto }/{ toport })
+{ FOREACH fromip IN d.$prefix.$toport.$proto.keys.ipsort -}
     {- NEXT IF fromip == 'XXX' -}
     {- NEXT IF fromip == 'XXX_service' -}
-    { fromip } - { d.$prefix.$toport.$proto.$fromip }
+  {FILTER format('% 4d')}{ d.$prefix.$toport.$proto.$fromip }{END}    { fromip }
 { END -}
 { END -}
 { END -}

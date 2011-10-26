@@ -6,6 +6,8 @@ no warnings 'misc';
 use LogReporter::Service::Postfix::Constants;
 use LogReporter::Service::Postfix::Functions;
 
+# cat lib/LogReporter/Service/Postfix.pm | grep '#TD' | perl -ple 's/^\s+#TD(\d*)\s+/2011-10-21T14:17:56-05:00 test [blarg] postfix\/blarg(1234): /'
+
 override init => sub {
     my ($self) = @_;
     super();
@@ -13,6 +15,71 @@ override init => sub {
     $data->{UNMATCHED} = {};
     $data->{Totals} = {};
     $data->{Counts} = {};
+};
+
+override finalize => sub {
+    my ($self) = @_;
+    my $Totals = $self->data->{Totals};
+    my $Counts = $self->data->{Counts};
+    
+    $Totals->{'MsgsAccepted'} -= $Totals->{'MsgsResent'}
+      if ($Totals->{'MsgsAccepted'} >= $Totals->{'MsgsResent'});
+    
+    $Totals->{'TotalRejects'} = 
+        $Totals->{'RejectRelay'} 
+      + $Totals->{'RejectHelo'}
+      + $Totals->{'RejectUnknownUser'}
+      + $Totals->{'RejectRecip'}
+      + $Totals->{'RejectSender'}
+      + $Totals->{'RejectClient'}
+      + $Totals->{'RejectUnknownClient'}
+      + $Totals->{'RejectUnknownReverseClient'}
+      + $Totals->{'RejectRBL'}
+      + $Totals->{'RejectHeader'}
+      + $Totals->{'RejectBody'}
+      + $Totals->{'RejectSize'}
+      + $Totals->{'RejectMilter'}
+      + $Totals->{'RejectInsufficientSpace'}
+      + $Totals->{'RejectConfigError'}
+      + $Totals->{'RejectVerify'}
+      ;
+    
+    $Totals->{'TotalTempRejects'} = 
+        $Totals->{'TempRejectRelay'} 
+      + $Totals->{'TempRejectHelo'}
+      + $Totals->{'TempRejectUnknownUser'}
+      + $Totals->{'TempRejectRecip'}
+      + $Totals->{'TempRejectSender'}
+      + $Totals->{'TempRejectClient'}
+      + $Totals->{'TempRejectUnknownClient'}
+      + $Totals->{'TempRejectUnknownReverseClient'}
+      + $Totals->{'TempRejectRBL'}
+      + $Totals->{'TempRejectHeader'}
+      + $Totals->{'TempRejectBody'}
+      + $Totals->{'TempRejectSize'}
+      + $Totals->{'TempRejectMilter'}
+      + $Totals->{'TempRejectInsufficientSpace'}
+      + $Totals->{'TempRejectConfigError'}
+      + $Totals->{'TempRejectVerify'}
+      ;
+    
+    $Totals->{'TotalRejectWarns'} = 
+        $Totals->{'RejectWarnRelay'} 
+      + $Totals->{'RejectWarnHelo'}
+      + $Totals->{'RejectWarnUnknownUser'}
+      + $Totals->{'RejectWarnRecip'}
+      + $Totals->{'RejectWarnSender'}
+      + $Totals->{'RejectWarnClient'}
+      + $Totals->{'RejectWarnUnknownReverseClient'}
+      + $Totals->{'RejectWarnRBL'}
+      + $Totals->{'RejectWarnInsufficientSpace'}
+      + $Totals->{'RejectWarnConfigError'}
+      + $Totals->{'RejectWarnVerify'}
+      ;
+    
+    $Totals->{'TotalAcceptPlusReject'} = $Totals->{'MsgsAccepted'} + $Totals->{'TotalRejects'};
+    
+    
 };
 
 override process_line => sub {

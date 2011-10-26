@@ -1,3 +1,5 @@
 *.pnps
 *~
 \#*#
+/scripts/service*
+/tmp

@@ -70,15 +70,26 @@ no warnings 'uninitialized';
         
         my $actionType = _lookupAction($prefix);
         #$prefix = "(${prefix}) " if ($prefix ne "");
-        $self->data->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{$prefix}++;
-        $self->data->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{XXX}++;
-        $self->data->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{XXX_service} //= _lookupService($toport,$proto);
-        $self->data->{$actionType}{$interface}{$fromip}{$toip}{$toport}{XXX}++;
-        $self->data->{$actionType}{$interface}{$fromip}{$toip}{XXX}++;
-        $self->data->{$actionType}{$interface}{$fromip}{XXX}++;
-        $self->data->{$actionType}{$interface}{XXX}++;
-        $self->data->{$actionType}{XXX}++;
-#        say "G: $actionType $interface $fromip $toip $toport $proto '$prefix'";
+
+        # $ipt1->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{$prefix}++;
+        $self->data->{ipt1}->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{$prefix}++;
+        $self->data->{ipt1}->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{XXX}++;
+        $self->data->{ipt1}->{$actionType}{$interface}{$fromip}{$toip}{$toport}{$proto}{XXX_service} //= _lookupService($toport,$proto);
+        $self->data->{ipt1}->{$actionType}{$interface}{$fromip}{$toip}{$toport}{XXX}++;
+        $self->data->{ipt1}->{$actionType}{$interface}{$fromip}{$toip}{XXX}++;
+        $self->data->{ipt1}->{$actionType}{$interface}{$fromip}{XXX}++;
+        $self->data->{ipt1}->{$actionType}{$interface}{XXX}++;
+        $self->data->{ipt1}->{$actionType}{XXX}++;
+        
+        # $ipt2->{$actionType}{$interface}{$toport}{$proto}{$fromip}{$toip}{$prefix}++;
+        $self->data->{ipt2}->{$actionType}{$interface}{$toport}{$proto}{$fromip}{$toip}{$prefix}++;
+        $self->data->{ipt2}->{$actionType}{$interface}{$toport}{$proto}{$fromip}{$toip}{XXX}++;
+        $self->data->{ipt2}->{$actionType}{$interface}{$toport}{$proto}{$fromip}{XXX}++;
+        $self->data->{ipt2}->{$actionType}{$interface}{$toport}{$proto}{XXX}++;
+        $self->data->{ipt2}->{$actionType}{$interface}{$toport}{$proto}{XXX_service} //= _lookupService($toport,$proto);
+        $self->data->{ipt2}->{$actionType}{$interface}{$toport}{XXX}++;
+        $self->data->{ipt2}->{$actionType}{$interface}{XXX}++;
+        $self->data->{ipt2}->{$actionType}{XXX}++;
     }
 };
 

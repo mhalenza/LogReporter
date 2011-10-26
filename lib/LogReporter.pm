@@ -98,12 +98,12 @@ sub _setup_services {
     
     foreach my $svc_name (keys %$service_config){
         my $svc_config = $service_config->{$svc_name};
-        my $sources = $svc_config->{sources};
+        my $sources = delete $svc_config->{sources};
         
         my $src_objs = [ map { $self->_all_sources->{$_} } @$sources ];
         
         my $filters = [];
-        my $it = natatime 2, @{$svc_config->{filters} || []};
+        my $it = natatime 2, @{ delete $svc_config->{filters} || []};
         while( my ($name, $conf) = $it->() ){
             $self->_load_filter($name);
             push @$filters, "LogReporter::Filter::$name"->new(
@@ -116,6 +116,7 @@ sub _setup_services {
             name => $svc_name,
             sources => $src_objs,
             filters => $filters,
+            %$svc_config,
         );
         
         $self->_all_services->{$svc_name} = $svc_obj;

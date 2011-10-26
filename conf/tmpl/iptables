@@ -1,6 +1,18 @@
 { tmp = PROCESS iptables_macros -}
-
-{ iptfmt1_cust(d) }
-{# iptfmt2_cust(d.ipt2) }
-
-{# USE Dumper ; Dumper.dump(d.ipt2) }
+{# d -> prefix  toport proto fromip -}
+{ FOREACH prefix IN d.keys -}
+    {- NEXT IF prefix == 'XXX' -}
+{ prefix } ------
+{ FOREACH toport IN d.$prefix.keys -}
+    {- NEXT IF toport == 'XXX' -}
+{ FOREACH proto IN d.$prefix.$toport.keys -}
+    {- NEXT IF proto == 'XXX' -}
+  Service { d.$prefix.$toport.$proto.XXX_service } ({ proto }/{ toport })  - { d.$prefix.$toport.$proto.XXX }
+{ FOREACH fromip IN d.$prefix.$toport.$proto.keys -}
+    {- NEXT IF fromip == 'XXX' -}
+    {- NEXT IF fromip == 'XXX_service' -}
+    { fromip } - { d.$prefix.$toport.$proto.$fromip }
+{ END -}
+{ END -}
+{ END -}
+{ END -}

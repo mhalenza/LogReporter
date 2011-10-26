@@ -144,8 +144,8 @@ sub _collect_output {
         INCLUDE_PATH => [
             "$FindBin::Bin/../conf/tmpl/",
         ],
-        START_TAG => '{{',
-        END_TAG => '}}',
+        START_TAG => '{',
+        END_TAG => '}',
         PREPROCESS => 'HEADER',
         POSTPROCESS => 'FOOTER',
         STRICT => 1,

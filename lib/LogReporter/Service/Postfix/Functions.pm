@@ -4,7 +4,7 @@ use warnings;
 use LogReporter::Service::Postfix::Constants;
 
 use Exporter 'import';
-our @EXPORT = (qw/formathost cleanhostreply get_dsn_message/);
+our @EXPORT = (qw/formathost cleanhostreply get_dsn_msg/);
 
 # Formats IP and hostname for even column spacing
 sub formathost {

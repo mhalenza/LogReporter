@@ -252,7 +252,10 @@ Misc
 
 
 ***** Unmatched Lines ********************
-{ FOREACH line IN d.UNMATCHED -}
-  { line }
+{ FOREACH sect IN d.UNMATCHED.keys -}
+  { sect }
+{ FOREACH line IN d.UNMATCHED.$sect.keys -}
+    {d.UNMATCHED.$sect.$line} - { line }
+{ END -}
 { END -}
 { END -}

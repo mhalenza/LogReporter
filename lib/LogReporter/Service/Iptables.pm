@@ -6,7 +6,7 @@ extends 'LogReporter::Service';
 
 has 'proc' => (
     is => 'ro',
-    isa => 'Subref',
+    isa => 'CodeRef',
     traits => ['Code'],
     required => 1,
     handles => {

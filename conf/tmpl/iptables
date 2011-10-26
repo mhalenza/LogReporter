@@ -1,6 +1,6 @@
 { tmp = PROCESS iptables_macros -}
 
-{ iptfmt1_cust(d.ipt1) }
-{ iptfmt2_cust(d.ipt2) }
+{ iptfmt1_cust(d) }
+{# iptfmt2_cust(d.ipt2) }
 
 {# USE Dumper ; Dumper.dump(d.ipt2) }

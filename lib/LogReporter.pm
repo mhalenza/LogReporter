@@ -145,17 +145,24 @@ sub _collect_output {
     
     say "Collecting output";
     my $all_output;
-    $tt2->process('MAIN_HEADER',{ conf => $self->config, START_TIME => $^T },\$all_output)
+    open my $OUTFH, '>', \$all_output or die "open(\\\$all_output): $!";
+    
+    $tt2->process('MAIN_HEADER',{ conf => $self->config, START_TIME => $^T },$OUTFH)
       or warn "MAIN_HEADER process: ".$tt2->error();
     foreach my $service (values %{$self->_all_services}){
-        $tt2->process('HEADER',{ svc => $service->name },\$all_output)
+        $tt2->process('HEADER',{ svc => $service->name },$OUTFH)
           or warn "HEADER process: ".$tt2->error();
-        $all_output .= $service->get_output();
-        $tt2->process('FOOTER',{ svc => $service->name },\$all_output)
+          
+        my $old_stdout = select($OUTFH);
+        $service->get_output();
+        select($old_stdout);
+        
+        $tt2->process('FOOTER',{ svc => $service->name },$OUTFH)
           or warn "FOOTER process: " . $tt2->error();
     }
-    $tt2->process('MAIN_FOOTER',{ conf => $self->config },\$all_output)
+    $tt2->process('MAIN_FOOTER',{ conf => $self->config },$OUTFH)
       or warn "MAIN_FOOTER process: ". $tt2->error();
+    
     print "FINAL OUTPUT:\n$all_output";
 }
 

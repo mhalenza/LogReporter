@@ -5,7 +5,7 @@ use feature ':5.10';
 
 use Exporter 'import';
 our @EXPORT = (qw());
-our @EXPORT_OK = (qw(canonical_ipv6_address SortIP));
+our @EXPORT_OK = (qw(canonical_ipv6_address SortIP unitize));
 
 sub canonical_ipv6_address {
     my @a = split /:/, shift;
@@ -42,6 +42,20 @@ sub SortIP {
         my ($b1, $b2, $b3, $b4) = split /\./, $B;
         $a1 <=> $b1 || $a2 <=> $b2 || $a3 <=> $b3 || $a4 <=> $b4;
     }
+}
+
+sub unitize {
+    my ($num) = @_;
+    my $kilobyte = 1024;
+    my $megabyte = 1048576;
+    my $gigabyte = 1073741824;
+    my $terabyte = 1099511627776;
+
+    return sprintf "%.3f TB", ($num / $terabyte)  if ($num >= $terabyte);
+    return sprintf "%.3f GB", ($num / $gigabyte)  if ($num >= $gigabyte);
+    return sprintf "%.3f MB", ($num / $megabyte)  if ($num >= $megabyte);
+    return sprintf "%.3f KB", ($num / $kilobyte)  if ($num >= $kilobyte);
+    return sprintf "%.3f  B", ($num);
 }
 
 1;

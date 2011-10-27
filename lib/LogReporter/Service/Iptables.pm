@@ -106,17 +106,16 @@ no warnings 'uninitialized';
 override get_output => sub {
     my ($self) = @_;
     my $data = $self->data;
-    my $OUT = '';
     
     foreach my $prefix ( keys %{ $data } ){
         next if $prefix eq 'XXX';
-        $OUT .= sprintf "%s\n", $prefix;
+        printf "%s\n", $prefix;
         foreach my $toport ( keys %{ $data->{$prefix} } ){
             next if $toport eq 'XXX';
             foreach my $proto ( keys %{ $data->{$prefix}{$toport} } ){
                 next if $proto eq 'XXX';
                 
-                $OUT .= sprintf "  % 4d  Service %s (%s/%s)\n",
+                printf "  % 4d  Service %s (%s/%s)\n",
                     $data->{$prefix}{$toport}{$proto}{XXX},
                     $data->{$prefix}{$toport}{$proto}{XXX_service},
                     $proto,
@@ -126,15 +125,13 @@ override get_output => sub {
                     next if $fromip eq 'XXX';
                     next if $fromip eq 'XXX_service';
                     
-                    $OUT .= sprintf "  % 4d    %s\n",
+                    printf "  % 4d    %s\n",
                         $data->{$prefix}{$toport}{$proto}{$fromip},
                         $fromip;
                 }
             }
         }
     }
-    
-    return $OUT;
 };
 
 1;

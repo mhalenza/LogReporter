@@ -42,14 +42,8 @@ sub finalize {
     my ($self) = @_;
 }
 
-sub get_data {
-    my ($self) = @_;
-    return $self->data;
-}
-
 sub get_output {
     my ($self) = @_;
-    return "";
 }
 
 

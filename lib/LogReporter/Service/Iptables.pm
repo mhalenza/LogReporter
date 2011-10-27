@@ -107,24 +107,16 @@ override get_output => sub {
     my ($self) = @_;
     my $data = $self->data;
     
-    foreach my $prefix ( keys %{ $data } ){
-        next if $prefix eq 'XXX';
+    foreach my $prefix ( grep { !/^XXX/ } keys %{ $data } ){
         printf "%s\n", $prefix;
-        foreach my $toport ( keys %{ $data->{$prefix} } ){
-            next if $toport eq 'XXX';
+        foreach my $toport ( grep { !/^XXX/ } keys %{ $data->{$prefix} } ){
             foreach my $proto ( keys %{ $data->{$prefix}{$toport} } ){
-                next if $proto eq 'XXX';
-                
                 printf "  % 4d  Service %s (%s/%s)\n",
                     $data->{$prefix}{$toport}{$proto}{XXX},
                     $data->{$prefix}{$toport}{$proto}{XXX_service},
                     $proto,
                     $toport;
-                
-                foreach my $fromip ( sort SortIP keys %{ $data->{$prefix}{$toport}{$proto} } ){
-                    next if $fromip eq 'XXX';
-                    next if $fromip eq 'XXX_service';
-                    
+                foreach my $fromip ( sort SortIP grep { !/^XXX/ } keys %{ $data->{$prefix}{$toport}{$proto} } ){
                     printf "  % 4d    %s\n",
                         $data->{$prefix}{$toport}{$proto}{$fromip},
                         $fromip;

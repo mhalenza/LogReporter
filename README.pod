@@ -1,0 +1,142 @@
+=head1 LogReporter
+
+LogReporter is meant to be a modern reimplementation of L<Logwatch|http://sourceforge.net/projects/logwatch/files/>.
+It is based on Moose but hopefully still quite fast.
+
+=head1 Services
+
+=head2 Implemented
+
+=over
+
+=item Iptables
+
+=item Postfix
+
+=item BIND9 Query Log
+
+=item BIND9 (Partial(
+
+=back
+
+=head2 Planned for Implementation
+
+=over
+
+=item OpenSSH (sshd)
+
+=item secure
+
+=item sudo
+
+=item pam / pam_pwdb / pam_unix
+
+=item pacman
+
+=item dovecot
+
+=item crond
+
+=item kernel
+
+=back
+
+=head1 Hacking
+
+If you want to help out with the project, there are many ways of doing so.  First off, I'm only going to be implementing
+The Services for software that I actually run.  I'm not going to install and configure vsftpd because I dont run an ftpd.
+So if you run some software that I dont, writing a Service for it would be a great thing to do.
+
+I also don't really have a configloader, opting to use perl code as the configuration.  I'm going to leave it this way 
+unless someone comes up with a just-as-powerful solution with something else.  And no, I outright I<reject> any system
+that is like LogWatch's with config files in 3 different directories, and one config file per source/service/filter.
+That's just rediculous (IMO).
+
+If you want to work on the internals of LogReporter, start with F<scripts/logreporter.pl> and follow the code.
+I'll also try to outline the various classes here as well.
+
+=head2 Classes
+
+=over
+
+=item LogReporter
+
+This is the workhorse.  It's constructor takes a config hashref.
+It's C<run()> method sets the ball rolling: setting up all the objects (loading the classes if necessary), initializing sources,
+initializing services, running sources, finalizing sources, finalizing services, and then collecting output.
+The C<run()> method will probably be split up into separate phases later to separate the processing / parsing of logs from the
+reporting / formatting.
+
+=item LogReporter::Filter
+
+This class (should probably be a Role tbh, I havn't quite figured out how to make Moose inheritance work the way I want) has one
+responsibility: Take a line of text in, filter it somehow, and the decide if it should be dropped or passed.  Filter's a passed
+a I<reference> to the line string, so they can modify it before passing it on.
+
+All Sources have a "filter stack" that they pass lines through before handing them off to Services.
+In just about every case, the first two filters should be a LogReporter::Filter::Date (or subclass of) and then a LogReporter::Filter::DateRange.
+The first filter parses the timestamp of the logline, sticks it into a DateTime object and then removes the timestamp from the line.
+The next filter, DateRange, looks at this DateTime object and determines if it falls in the rage of dates that we care about.
+Feel free to skip this if you want to parse I<all> your logs, but be warned it may take some time.
+
+The filter space is kind-of all over the place right now and is very liable for implementation changes soon.
+
+=item LogReporter::Source
+
+The source for Source.pm is extremely self-documenting.  Go read it, focus on run().
+I split out logfile reading so in the future logfiles could be pulled from other sources (such as SQL databases).
+Services "register" themselves with Sources they are interested in.  If a Source has no interested Services, it will not bother
+looping through its loglines.
+
+=item LogReporter::Source::File
+
+Currently the default (and only) Source subclass.  It takes a list of filenames, opens them and then reads log lines from them.
+It's interaction with Source (especially in the C<run()> and C<get_line()> methods) is not entirely obvious, pay close attention to them.
+
+=item LogReporter::Service
+
+This is where the bulk of the code is going to lay (but most of it is going to be fairly standard).
+C<process_line()> gets called by Sources once for each line from the logs.  The Service should parse this line and
+once it figures out what the line represents, increment a counter in it's data structure.
+C<finalize()> is called after the sources are all done but before reporting begins.  Use this to clean up your data
+structure before reporting.
+C<get_output()> gets called by LogReporter last and it should use print/printf to output the report.  LogReporter will
+take care of redirecting the selected filehande.
+
+=back
+
+=head1 Other Tidbits about Using LogReporter
+
+=over
+
+=item 1
+
+If you are a user of this module, I assume that you are a sysadmin, and that you have at least a little knowledge of Perl.
+You'll need it when writing / modifying the config file.
+
+=item 2
+
+This software is currently alpha/pre-beta/really new so use it at your own risk.  I'm working on it, but if you need a
+mature log reporting solution that works out of the box, go check out L<Logwatch|http://sourceforge.net/projects/logwatch/files/>
+
+=item 3
+
+Something else was supposed to go here, but I forgot.  #TODO: Remember what it was.
+
+=back
+
+=head1 Legal Bullshit
+
+I'm not a lawyer, I'm a sysadmin.  LogWatch itself is covered by the MIT License as are most of its contributations.
+I'm releasing *my* code as MIT as well for shiggles.  Since I'm not a lawyer, I'm pointing out that most of the 
+actual log parsing code was copied and pasted from the Logwatch sources.  That being said, implementing them myself
+black-box style would have been pretty easy, but very time consuming as I can't find any perldiag-like manuals for
+any of the other software.  I also like the IETF's motto of "rough consensus and running code".
+
+TL;DR> I hate copyright, Kirk Bauer is awesome, now let's get coding!
+
+=head1 Author Information
+
+    Matt "imMute" Sickler <imMute@msk4.com>
+    http://www.msk4.com
+=cut

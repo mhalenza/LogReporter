@@ -15,7 +15,7 @@ has 'du_cmd' => (
     is => 'rw',
     isa => 'Str',
     required => 1,
-    default => sub { 'du -s --block-size=1048576 -h $XXX | sort -n -r -k 1'; },
+    default => sub { 'du -s --block-size=1048576 -h $XXX'; },
 );
 
 has 'dirs' => (
@@ -27,8 +27,18 @@ has 'dirs' => (
 
 override get_output => sub {
     my ($self) = @_;
-    
+    my $df_cmd = $self->df_cmd;
     print `$df_cmd`;
+    
+    if ( scalar @{ $self->dirs } > 0 ){
+        print "\n";
+        my $du_cmd = $self->du_cmd;
+        print "Size    Directory\n";
+        foreach my $dir ( @{ $self->dirs } ){
+            (my $cmd = $du_cmd) =~ s/\$XXX/$dir/;
+            print `$cmd`;
+        }
+    }
 };
 
 1;

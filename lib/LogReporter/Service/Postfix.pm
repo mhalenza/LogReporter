@@ -9,6 +9,9 @@ use LogReporter::Util qw/unitize/;
 
 # cat lib/LogReporter/Service/Postfix.pm | grep '#TD' | perl -ple 's/^\s+#TD(\d*)\s+/2011-10-21T14:17:56-05:00 test [blarg] postfix\/blarg(1234): /'
 
+has print_summaries => ( is => 'rw', isa => 'Bool', required => 1, default => sub { 1 }, );
+has print_details   => ( is => 'rw', isa => 'Bool', required => 1, default => sub { 1 }, );
+
 override init => sub {
     my ($self) = @_;
     super();
@@ -22,6 +25,8 @@ override finalize => sub {
     my ($self) = @_;
     my $Totals = $self->data->{Totals};
     my $Counts = $self->data->{Counts};
+
+    no warnings 'uninitialized'; # not all these Totals are necessarily defined
     
     $Totals->{'MsgsAccepted'} -= $Totals->{'MsgsResent'}
       if ($Totals->{'MsgsAccepted'} >= $Totals->{'MsgsResent'});
@@ -79,7 +84,7 @@ override finalize => sub {
       ;
     
     $Totals->{'TotalAcceptPlusReject'} = $Totals->{'MsgsAccepted'} + $Totals->{'TotalRejects'};
-    
+
     preprocessTree($self->data->{Counts});
 };
 
@@ -1071,7 +1076,6 @@ override get_output => sub {
     my ($self) = @_;
     my $d = $self->data;
     
-    printf "***** Summary ********************\n";
     p1($d,"PanicError",             "*Panic:   General panic");
     p1($d,'FatalFileTooBig',        "*Fatal:   Message file too big");
     p1($d,'FatalConfigError',       "*Fatal:   Configuration error");
@@ -1111,216 +1115,220 @@ override get_output => sub {
     p2($d,'TotalAcceptPlusReject','Total','TotalAcceptPlusReject');
     printf "=====\n\n";
     
-    p2($d,'RejectRelay',               "Reject relay denied",               'TotalRejects');
-    p2($d,'RejectHelo',                "Reject HELO/EHLO",                  'TotalRejects');
-    p2($d,'RejectUnknownUser',         "Reject unknown user",               'TotalRejects');
-    p2($d,'RejectRecip',               "Reject recipient address",          'TotalRejects');
-    p2($d,'RejectSender',              "Reject sender address",             'TotalRejects');
-    p2($d,'RejectClient',              "Reject client host",                'TotalRejects');
-    p2($d,'RejectUnknownClient',       "Reject unknown client host",        'TotalRejects');
-    p2($d,'RejectUnknownReverseClient',"Reject unknown reverse client host",'TotalRejects');
-    p2($d,'RejectRBL',                 "Reject RBL",                        'TotalRejects');
-    p2($d,'RejectHeader',              "Reject header",                     'TotalRejects');
-    p2($d,'RejectBody',                "Reject body",                       'TotalRejects');
-    p2($d,'RejectSize',                "Reject message size",               'TotalRejects');
-    p2($d,'RejectMilter',              "Reject milter",                     'TotalRejects');
-    p2($d,'RejectInsufficientSpace',   "Reject insufficient space",         'TotalRejects');
-    p2($d,'RejectConfigError',         "Reject server configuration error", 'TotalRejects');
-    p2($d,'RejectVerify',              "Reject VRFY",                       'TotalRejects');
-    printf "-----  -------   ---------------------------\n";
-    p2($d,'TotalRejects',              "Total Rejects",                     'TotalRejects');
-    printf "=====\n\n";
+    if ( $self->print_summaries ){
+        printf "***** Summary ********************\n";
+        p2($d,'RejectRelay',               "Reject relay denied",               'TotalRejects');
+        p2($d,'RejectHelo',                "Reject HELO/EHLO",                  'TotalRejects');
+        p2($d,'RejectUnknownUser',         "Reject unknown user",               'TotalRejects');
+        p2($d,'RejectRecip',               "Reject recipient address",          'TotalRejects');
+        p2($d,'RejectSender',              "Reject sender address",             'TotalRejects');
+        p2($d,'RejectClient',              "Reject client host",                'TotalRejects');
+        p2($d,'RejectUnknownClient',       "Reject unknown client host",        'TotalRejects');
+        p2($d,'RejectUnknownReverseClient',"Reject unknown reverse client host",'TotalRejects');
+        p2($d,'RejectRBL',                 "Reject RBL",                        'TotalRejects');
+        p2($d,'RejectHeader',              "Reject header",                     'TotalRejects');
+        p2($d,'RejectBody',                "Reject body",                       'TotalRejects');
+        p2($d,'RejectSize',                "Reject message size",               'TotalRejects');
+        p2($d,'RejectMilter',              "Reject milter",                     'TotalRejects');
+        p2($d,'RejectInsufficientSpace',   "Reject insufficient space",         'TotalRejects');
+        p2($d,'RejectConfigError',         "Reject server configuration error", 'TotalRejects');
+        p2($d,'RejectVerify',              "Reject VRFY",                       'TotalRejects');
+        printf "-----  -------   ---------------------------\n";
+        p2($d,'TotalRejects',              "Total Rejects",                     'TotalRejects');
+        printf "=====\n\n";
+        
+        p2($d,'TempRejectRelay',               "4xx Reject relay denied",               'TotalTempRejects');
+        p2($d,'TempRejectHelo',                "4xx Reject HELO/EHLO",                  'TotalTempRejects');
+        p2($d,'TempRejectUnknownUser',         "4xx Reject unknown user",               'TotalTempRejects');
+        p2($d,'TempRejectRecip',               "4xx Reject recipient address",          'TotalTempRejects');
+        p2($d,'TempRejectSender',              "4xx Reject sender address",             'TotalTempRejects');
+        p2($d,'TempRejectClient',              "4xx Reject client host",                'TotalTempRejects');
+        p2($d,'TempRejectUnknownClient',       "4xx Reject unknown client host",        'TotalTempRejects');
+        p2($d,'TempRejectUnknownReverseClient',"4xx Reject unknown reverse client host",'TotalTempRejects');
+        p2($d,'TempRejectRBL',                 "4xx Reject RBL",                        'TotalTempRejects');
+        p2($d,'TempRejectHeader',              "4xx Reject header",                     'TotalTempRejects');
+        p2($d,'TempRejectBody',                "4xx Reject body",                       'TotalTempRejects');
+        p2($d,'TempRejectSize',                "4xx Reject message size",               'TotalTempRejects');
+        p2($d,'TempRejectMilter',              "4xx Reject milter",                     'TotalTempRejects');
+        p2($d,'TempRejectInsufficientSpace',   "4xx Reject insufficient space",         'TotalTempRejects');
+        p2($d,'TempRejectConfigError',         "4xx Reject server configuration error", 'TotalTempRejects');
+        p2($d,'TempRejectVerify',              "4xx Reject VRFY",                       'TotalTempRejects');
+        printf "-----  -------   ---------------------------\n";
+        p2($d,'TotalTempRejects',              "Total 4xx Rejects",                     'TotalTempRejects');
+        printf "=====\n\n";
+        
+        p1($d,'RejectWarnRelay',                "Reject warning relay denied");
+        p1($d,'RejectWarnHelo',                 "Reject warning HELO/EHLO");
+        p1($d,'RejectWarnUnknownUser',          "Reject warning unknown user");
+        p1($d,'RejectWarnRecip',                "Reject warning recipient address");
+        p1($d,'RejectWarnSender',               "Reject warning sender address");
+        p1($d,'RejectWarnClient',               "Reject warning client host");
+        p1($d,'RejectWarnUnknownClient',        "Reject warning unknown client host");
+        p1($d,'RejectWarnUnknownReverseCliend', "Reject warning unknown reverse client host");
+        p1($d,'RejectWarnRBL',                  "Reject warning via RBL");
+        p1($d,'RejectWarnInsufficientSpace',    "Reject warning insufficient space");
+        p1($d,'RejectWarnConfigError',          "Reject warning server configuration error");
+        p1($d,'RejectWarnVerify',               "Reject warning VRFY");
+        printf "-----   ---------------------------\n";
+        p1($d,'TotalRejectWarns',               "Total Reject Warnings");
+        printf "=====\n\n";
+        
+        p1($d,'ConnectionInbound',       "Connections made");
+        p1($d,'ConnectionLost',          "Connections lost");
+        p1($d,'Disconnection',           "Disconnections");
+        p1($d,'RemovedFromQueue',        "Removed from queue");
+        p1($d,'MsgsDelivered',           "Delivered");
+        p1($d,'MsgsSent',                "Sent via SMTP");
+        p1($d,'MsgsSentLmtp',            "Sent via LMTP");
+        p1($d,'MsgsForwarded',           "Forwarded");
+        p1($d,'MsgsResent',              "Resent");
+        p1($d,'MsgsDeferred',            "Deferred");
+        p1($d,'Deferrals',               "Deferrals");
+        p1($d,'BounceLocal',             "Bounce (local)");
+        p1($d,'BounceRemote',            "Bounce (remote)");
+        p1($d,'Filtered',                "Filtered");
+        p1($d,'Discarded',               "Discarded");
+        p1($d,'Requeued',                "Requeued messages");
+        p1($d,'ReturnedToSender',        "Expired and returned to sender");
+        p1($d,'SenderDelayNotification', "Sender delay notification");
+        p1($d,'DSNDelivered',            "DSNs delivered");
+        p1($d,'DSNUndelivered',          "DSNs undeliverable");
+        p1($d,'PolicySPF',               "Policy SPF");
+        p1($d,'PolicydWeight',           "Policyd-weight");
+        printf "=====\n\n";
+
+        p1($d,'ConnectToFailure',        "Connection failure (outbound)");
+        p1($d,'TimeoutInbound',          "Timeout (inbound)");
+        p1($d,'HeloError',               "HELO/EHLO conversations errors");
+        p1($d,'IllegalAddrSyntax',       "Illegal address syntax in SMTP command");
+        p1($d,'WarningHeader',           "Header warning");
+        p1($d,'ReleasedFromHold',        "Released from hold");
+        p1($d,'RBLError',                "RBL lookup error");
+        p1($d,'MxError',                 "MX error");
+        p1($d,'NumericHostname',         "Numeric hostname");
+        p1($d,'SmtpConversationError',   "SMTP commands dialog error");
+        p1($d,'TooManyErrors',           "Excessive errors in SMTP commands dialog");
+        p1($d,'HostnameVerification',    "Hostname verification errors");
+        p1($d,'HostnameValidationError', "Hostname validation error");
+        p1($d,'Deliverable',             "Address is deliverable (sendmail -bv)");
+        p1($d,'Undeliverable',           "Address is undeliverable (sendmail -bv)");
+        p1($d,'TableChanged',            "Restarts due to lookup table change");
+        p1($d,'PixWorkaround',           "Enabled PIX workaround");
+        p1($d,'TlsServerConnect',        "TLS connections (server)");
+        p1($d,'TlsClientConnect',        "TLS connections (client)");
+        p1($d,'SaslAuth',                "SASL authenticated messages");
+        p1($d,'SaslAuthRelay',           "SASL authenticated relayed messages");
+        p1($d,'TlsUnverified',           "TLS certificate unverified");
+        p1($d,'TlsOffered',              "Host offered TLS");
+        printf "=====\n\n";
+
+        p1($d,'PostfixStart',            "Postfix start");
+        p1($d,'PostfixStop',             "Postfix stop");
+        p1($d,'PostfixRefresh',          "Postfix refresh");
+        p1($d,'PostfixWaiting',          "Postfix waiting to terminate");
+    }
+
+    if ( $self->print_details ){
+        printf "***** Detailed ********************\n";
+        printf "Rejects\n=====\n";
+        p3($d,'RejectRelay',               "Reject relay denied");
+        p3($d,'RejectHelo',                "Reject HELO/EHLO");
+        p3($d,'RejectUnknownUser',         "Reject unknown user");
+        p3($d,'RejectRecip',               "Reject recipient address");
+        p3($d,'RejectSender',              "Reject sender address");
+        p3($d,'RejectClient',              "Reject client host");
+        p3($d,'RejectUnknownClient',       "Reject unknown client host");
+        p3($d,'RejectUnknownReverseClient',"Reject unknown reverse client host",'TotalRejects');
+        p3($d,'RejectRBL',                 "Reject RBL");
+        p3($d,'RejectHeader',              "Reject header");
+        p3($d,'RejectBody',                "Reject body");
+        p3($d,'RejectSize',                "Reject message size");
+        p3($d,'RejectMilter',              "Reject milter");
+        p3($d,'RejectInsufficientSpace',   "Reject insufficient space");
+        p3($d,'RejectConfigError',         "Reject server configuration error");
+        p3($d,'RejectVerify',              "Reject VRFY");
+
+        printf "Temporary Rejects\n=====\n";
+        p3($d,'TempRejectRelay',               "4xx Reject relay denied");
+        p3($d,'TempRejectHelo',                "4xx Reject HELO/EHLO");
+        p3($d,'TempRejectUnknownUser',         "4xx Reject unknown user");
+        p3($d,'TempRejectRecip',               "4xx Reject recipient address");
+        p3($d,'TempRejectSender',              "4xx Reject sender address");
+        p3($d,'TempRejectClient',              "4xx Reject client host");
+        p3($d,'TempRejectUnknownClient',       "4xx Reject unknown client host");
+        p3($d,'TempRejectUnknownReverseClient',"4xx Reject unknown reverse client host");
+        p3($d,'TempRejectRBL',                 "4xx Reject RBL");
+        p3($d,'TempRejectHeader',              "4xx Reject header");
+        p3($d,'TempRejectBody',                "4xx Reject body");
+        p3($d,'TempRejectSize',                "4xx Reject message size");
+        p3($d,'TempRejectMilter',              "4xx Reject milter");
+        p3($d,'TempRejectInsufficientSpace',   "4xx Reject insufficient space");
+        p3($d,'TempRejectConfigError',         "4xx Reject server configuration error");
+        p3($d,'TempRejectVerify',              "4xx Reject VRFY");
+
+        printf "Reject with Warning\n=====\n";
+        p3($d,'RejectWarnRelay',                "Reject warning relay denied");
+        p3($d,'RejectWarnHelo',                 "Reject warning HELO/EHLO");
+        p3($d,'RejectWarnUnknownUser',          "Reject warning unknown user");
+        p3($d,'RejectWarnRecip',                "Reject warning recipient address");
+        p3($d,'RejectWarnSender',               "Reject warning sender address");
+        p3($d,'RejectWarnClient',               "Reject warning client host");
+        p3($d,'RejectWarnUnknownClient',        "Reject warning unknown client host");
+        p3($d,'RejectWarnUnknownReverseCliend', "Reject warning unknown reverse client host");
+        p3($d,'RejectWarnRBL',                  "Reject warning via RBL");
+        p3($d,'RejectWarnInsufficientSpace',    "Reject warning insufficient space");
+        p3($d,'RejectWarnConfigError',          "Reject warning server configuration error");
+        p3($d,'RejectWarnVerify',               "Reject warning VRFY");
+
+        printf "Misc\n=====\n";
+        p3($d,'ConnectionInbound',       "Connections made");
+        p3($d,'ConnectionLost',          "Connections lost");
+        p3($d,'Disconnection',           "Disconnections");
+        p3($d,'RemovedFromQueue',        "Removed from queue");
+        p3($d,'MsgsDelivered',           "Delivered");
+        p3($d,'MsgsSent',                "Sent via SMTP");
+        p3($d,'MsgsSentLmtp',            "Sent via LMTP");
+        p3($d,'MsgsForwarded',           "Forwarded");
+        p3($d,'MsgsResent',              "Resent");
+        p3($d,'MsgsDeferred',            "Deferred");
+        p3($d,'Deferrals',               "Deferrals");
+        p3($d,'BounceLocal',             "Bounce (local)");
+        p3($d,'BounceRemote',            "Bounce (remote)");
+        p3($d,'Filtered',                "Filtered");
+        p3($d,'Discarded',               "Discarded");
+        p3($d,'Requeued',                "Requeued messages");
+        p3($d,'ReturnedToSender',        "Expired and returned to sender");
+        p3($d,'SenderDelayNotification', "Sender delay notification");
+        p3($d,'DSNDelivered',            "DSNs delivered");
+        p3($d,'DSNUndelivered',          "DSNs undeliverable");
+        p3($d,'PolicySPF',               "Policy SPF");
+        p3($d,'PolicydWeight',           "Policyd-weight");
+
+        p3($d,'ConnectToFailure',        "Connection failure (outbound)");
+        p3($d,'TimeoutInbound',          "Timeout (inbound)");
+        p3($d,'HeloError',               "HELO/EHLO conversations errors");
+        p3($d,'IllegalAddrSyntax',       "Illegal address syntax in SMTP command");
+        p3($d,'WarningHeader',           "Header warning");
+        p3($d,'ReleasedFromHold',        "Released from hold");
+        p3($d,'RBLError',                "RBL lookup error");
+        p3($d,'MxError',                 "MX error");
+        p3($d,'NumericHostname',         "Numeric hostname");
+        p3($d,'SmtpConversationError',   "SMTP commands dialog error");
+        p3($d,'TooManyErrors',           "Excessive errors in SMTP commands dialog");
+        p3($d,'HostnameVerification',    "Hostname verification errors");
+        p3($d,'HostnameValidationError', "Hostname validation error");
+        p3($d,'Deliverable',             "Address is deliverable (sendmail -bv)");
+        p3($d,'Undeliverable',           "Address is undeliverable (sendmail -bv)");
+        p3($d,'TableChanged',            "Restarts due to lookup table change");
+        p3($d,'PixWorkaround',           "Enabled PIX workaround");
+        p3($d,'TlsServerConnect',        "TLS connections (server)");
+        p3($d,'TlsClientConnect',        "TLS connections (client)");
+        p3($d,'SaslAuth',                "SASL authenticated messages");
+        p3($d,'SaslAuthRelay',           "SASL authenticated relayed messages");
+        p3($d,'TlsUnverified',           "TLS certificate unverified");
+        p3($d,'TlsOffered',              "Host offered TLS");
+    }
     
-    p2($d,'TempRejectRelay',               "4xx Reject relay denied",               'TotalTempRejects');
-    p2($d,'TempRejectHelo',                "4xx Reject HELO/EHLO",                  'TotalTempRejects');
-    p2($d,'TempRejectUnknownUser',         "4xx Reject unknown user",               'TotalTempRejects');
-    p2($d,'TempRejectRecip',               "4xx Reject recipient address",          'TotalTempRejects');
-    p2($d,'TempRejectSender',              "4xx Reject sender address",             'TotalTempRejects');
-    p2($d,'TempRejectClient',              "4xx Reject client host",                'TotalTempRejects');
-    p2($d,'TempRejectUnknownClient',       "4xx Reject unknown client host",        'TotalTempRejects');
-    p2($d,'TempRejectUnknownReverseClient',"4xx Reject unknown reverse client host",'TotalTempRejects');
-    p2($d,'TempRejectRBL',                 "4xx Reject RBL",                        'TotalTempRejects');
-    p2($d,'TempRejectHeader',              "4xx Reject header",                     'TotalTempRejects');
-    p2($d,'TempRejectBody',                "4xx Reject body",                       'TotalTempRejects');
-    p2($d,'TempRejectSize',                "4xx Reject message size",               'TotalTempRejects');
-    p2($d,'TempRejectMilter',              "4xx Reject milter",                     'TotalTempRejects');
-    p2($d,'TempRejectInsufficientSpace',   "4xx Reject insufficient space",         'TotalTempRejects');
-    p2($d,'TempRejectConfigError',         "4xx Reject server configuration error", 'TotalTempRejects');
-    p2($d,'TempRejectVerify',              "4xx Reject VRFY",                       'TotalTempRejects');
-    printf "-----  -------   ---------------------------\n";
-    p2($d,'TotalTempRejects',              "Total 4xx Rejects",                     'TotalTempRejects');
-    printf "=====\n\n";
-    
-    p1($d,'RejectWarnRelay',                "Reject warning relay denied");
-    p1($d,'RejectWarnHelo',                 "Reject warning HELO/EHLO");
-    p1($d,'RejectWarnUnknownUser',          "Reject warning unknown user");
-    p1($d,'RejectWarnRecip',                "Reject warning recipient address");
-    p1($d,'RejectWarnSender',               "Reject warning sender address");
-    p1($d,'RejectWarnClient',               "Reject warning client host");
-    p1($d,'RejectWarnUnknownClient',        "Reject warning unknown client host");
-    p1($d,'RejectWarnUnknownReverseCliend', "Reject warning unknown reverse client host");
-    p1($d,'RejectWarnRBL',                  "Reject warning via RBL");
-    p1($d,'RejectWarnInsufficientSpace',    "Reject warning insufficient space");
-    p1($d,'RejectWarnConfigError',          "Reject warning server configuration error");
-    p1($d,'RejectWarnVerify',               "Reject warning VRFY");
-    printf "-----   ---------------------------\n";
-    p1($d,'TotalRejectWarns',               "Total Reject Warnings");
-    printf "=====\n\n";
-    
-    p1($d,'ConnectionInbound',       "Connections made");
-    p1($d,'ConnectionLost',          "Connections lost");
-    p1($d,'Disconnection',           "Disconnections");
-    p1($d,'RemovedFromQueue',        "Removed from queue");
-    p1($d,'MsgsDelivered',           "Delivered");
-    p1($d,'MsgsSent',                "Sent via SMTP");
-    p1($d,'MsgsSentLmtp',            "Sent via LMTP");
-    p1($d,'MsgsForwarded',           "Forwarded");
-    p1($d,'MsgsResent',              "Resent");
-    p1($d,'MsgsDeferred',            "Deferred");
-    p1($d,'Deferrals',               "Deferrals");
-    p1($d,'BounceLocal',             "Bounce (local)");
-    p1($d,'BounceRemote',            "Bounce (remote)");
-    p1($d,'Filtered',                "Filtered");
-    p1($d,'Discarded',               "Discarded");
-    p1($d,'Requeued',                "Requeued messages");
-    p1($d,'ReturnedToSender',        "Expired and returned to sender");
-    p1($d,'SenderDelayNotification', "Sender delay notification");
-    p1($d,'DSNDelivered',            "DSNs delivered");
-    p1($d,'DSNUndelivered',          "DSNs undeliverable");
-    p1($d,'PolicySPF',               "Policy SPF");
-    p1($d,'PolicydWeight',           "Policyd-weight");
-    printf "=====\n\n";
-
-    p1($d,'ConnectToFailure',        "Connection failure (outbound)");
-    p1($d,'TimeoutInbound',          "Timeout (inbound)");
-    p1($d,'HeloError',               "HELO/EHLO conversations errors");
-    p1($d,'IllegalAddrSyntax',       "Illegal address syntax in SMTP command");
-    p1($d,'WarningHeader',           "Header warning");
-    p1($d,'ReleasedFromHold',        "Released from hold");
-    p1($d,'RBLError',                "RBL lookup error");
-    p1($d,'MxError',                 "MX error");
-    p1($d,'NumericHostname',         "Numeric hostname");
-    p1($d,'SmtpConversationError',   "SMTP commands dialog error");
-    p1($d,'TooManyErrors',           "Excessive errors in SMTP commands dialog");
-    p1($d,'HostnameVerification',    "Hostname verification errors");
-    p1($d,'HostnameValidationError', "Hostname validation error");
-    p1($d,'Deliverable',             "Address is deliverable (sendmail -bv)");
-    p1($d,'Undeliverable',           "Address is undeliverable (sendmail -bv)");
-    p1($d,'TableChanged',            "Restarts due to lookup table change");
-    p1($d,'PixWorkaround',           "Enabled PIX workaround");
-    p1($d,'TlsServerConnect',        "TLS connections (server)");
-    p1($d,'TlsClientConnect',        "TLS connections (client)");
-    p1($d,'SaslAuth',                "SASL authenticated messages");
-    p1($d,'SaslAuthRelay',           "SASL authenticated relayed messages");
-    p1($d,'TlsUnverified',           "TLS certificate unverified");
-    p1($d,'TlsOffered',              "Host offered TLS");
-    printf "=====\n\n";
-
-    p1($d,'PostfixStart',            "Postfix start");
-    p1($d,'PostfixStop',             "Postfix stop");
-    p1($d,'PostfixRefresh',          "Postfix refresh");
-    p1($d,'PostfixWaiting',          "Postfix waiting to terminate");
-    
-    
-    printf "***** Detailed ********************\n";
-    printf "Rejects\n=====\n";
-    p3($d,'RejectRelay',               "Reject relay denied");
-    p3($d,'RejectHelo',                "Reject HELO/EHLO");
-    p3($d,'RejectUnknownUser',         "Reject unknown user");
-    p3($d,'RejectRecip',               "Reject recipient address");
-    p3($d,'RejectSender',              "Reject sender address");
-    p3($d,'RejectClient',              "Reject client host");
-    p3($d,'RejectUnknownClient',       "Reject unknown client host");
-    p3($d,'RejectUnknownReverseClient',"Reject unknown reverse client host",'TotalRejects');
-    p3($d,'RejectRBL',                 "Reject RBL");
-    p3($d,'RejectHeader',              "Reject header");
-    p3($d,'RejectBody',                "Reject body");
-    p3($d,'RejectSize',                "Reject message size");
-    p3($d,'RejectMilter',              "Reject milter");
-    p3($d,'RejectInsufficientSpace',   "Reject insufficient space");
-    p3($d,'RejectConfigError',         "Reject server configuration error");
-    p3($d,'RejectVerify',              "Reject VRFY");
-
-    printf "Temporary Rejects\n=====\n";
-    p3($d,'TempRejectRelay',               "4xx Reject relay denied");
-    p3($d,'TempRejectHelo',                "4xx Reject HELO/EHLO");
-    p3($d,'TempRejectUnknownUser',         "4xx Reject unknown user");
-    p3($d,'TempRejectRecip',               "4xx Reject recipient address");
-    p3($d,'TempRejectSender',              "4xx Reject sender address");
-    p3($d,'TempRejectClient',              "4xx Reject client host");
-    p3($d,'TempRejectUnknownClient',       "4xx Reject unknown client host");
-    p3($d,'TempRejectUnknownReverseClient',"4xx Reject unknown reverse client host");
-    p3($d,'TempRejectRBL',                 "4xx Reject RBL");
-    p3($d,'TempRejectHeader',              "4xx Reject header");
-    p3($d,'TempRejectBody',                "4xx Reject body");
-    p3($d,'TempRejectSize',                "4xx Reject message size");
-    p3($d,'TempRejectMilter',              "4xx Reject milter");
-    p3($d,'TempRejectInsufficientSpace',   "4xx Reject insufficient space");
-    p3($d,'TempRejectConfigError',         "4xx Reject server configuration error");
-    p3($d,'TempRejectVerify',              "4xx Reject VRFY");
-
-    printf "Reject with Warning\n=====\n";
-    p3($d,'RejectWarnRelay',                "Reject warning relay denied");
-    p3($d,'RejectWarnHelo',                 "Reject warning HELO/EHLO");
-    p3($d,'RejectWarnUnknownUser',          "Reject warning unknown user");
-    p3($d,'RejectWarnRecip',                "Reject warning recipient address");
-    p3($d,'RejectWarnSender',               "Reject warning sender address");
-    p3($d,'RejectWarnClient',               "Reject warning client host");
-    p3($d,'RejectWarnUnknownClient',        "Reject warning unknown client host");
-    p3($d,'RejectWarnUnknownReverseCliend', "Reject warning unknown reverse client host");
-    p3($d,'RejectWarnRBL',                  "Reject warning via RBL");
-    p3($d,'RejectWarnInsufficientSpace',    "Reject warning insufficient space");
-    p3($d,'RejectWarnConfigError',          "Reject warning server configuration error");
-    p3($d,'RejectWarnVerify',               "Reject warning VRFY");
-
-    printf "Misc\n=====\n";
-    p3($d,'ConnectionInbound',       "Connections made");
-    p3($d,'ConnectionLost',          "Connections lost");
-    p3($d,'Disconnection',           "Disconnections");
-    p3($d,'RemovedFromQueue',        "Removed from queue");
-    p3($d,'MsgsDelivered',           "Delivered");
-    p3($d,'MsgsSent',                "Sent via SMTP");
-    p3($d,'MsgsSentLmtp',            "Sent via LMTP");
-    p3($d,'MsgsForwarded',           "Forwarded");
-    p3($d,'MsgsResent',              "Resent");
-    p3($d,'MsgsDeferred',            "Deferred");
-    p3($d,'Deferrals',               "Deferrals");
-    p3($d,'BounceLocal',             "Bounce (local)");
-    p3($d,'BounceRemote',            "Bounce (remote)");
-    p3($d,'Filtered',                "Filtered");
-    p3($d,'Discarded',               "Discarded");
-    p3($d,'Requeued',                "Requeued messages");
-    p3($d,'ReturnedToSender',        "Expired and returned to sender");
-    p3($d,'SenderDelayNotification', "Sender delay notification");
-    p3($d,'DSNDelivered',            "DSNs delivered");
-    p3($d,'DSNUndelivered',          "DSNs undeliverable");
-    p3($d,'PolicySPF',               "Policy SPF");
-    p3($d,'PolicydWeight',           "Policyd-weight");
-
-    p3($d,'ConnectToFailure',        "Connection failure (outbound)");
-    p3($d,'TimeoutInbound',          "Timeout (inbound)");
-    p3($d,'HeloError',               "HELO/EHLO conversations errors");
-    p3($d,'IllegalAddrSyntax',       "Illegal address syntax in SMTP command");
-    p3($d,'WarningHeader',           "Header warning");
-    p3($d,'ReleasedFromHold',        "Released from hold");
-    p3($d,'RBLError',                "RBL lookup error");
-    p3($d,'MxError',                 "MX error");
-    p3($d,'NumericHostname',         "Numeric hostname");
-    p3($d,'SmtpConversationError',   "SMTP commands dialog error");
-    p3($d,'TooManyErrors',           "Excessive errors in SMTP commands dialog");
-    p3($d,'HostnameVerification',    "Hostname verification errors");
-    p3($d,'HostnameValidationError', "Hostname validation error");
-    p3($d,'Deliverable',             "Address is deliverable (sendmail -bv)");
-    p3($d,'Undeliverable',           "Address is undeliverable (sendmail -bv)");
-    p3($d,'TableChanged',            "Restarts due to lookup table change");
-    p3($d,'PixWorkaround',           "Enabled PIX workaround");
-    p3($d,'TlsServerConnect',        "TLS connections (server)");
-    p3($d,'TlsClientConnect',        "TLS connections (client)");
-    p3($d,'SaslAuth',                "SASL authenticated messages");
-    p3($d,'SaslAuthRelay',           "SASL authenticated relayed messages");
-    p3($d,'TlsUnverified',           "TLS certificate unverified");
-    p3($d,'TlsOffered',              "Host offered TLS");
-
     if ( scalar(keys %{$d->{UNMATCHED}}) > 0 ){
         printf "\n\n***** Unmatched Lines ********************\n";
         foreach my $sect ( keys %{ $d->{UNMATCHED} } ){

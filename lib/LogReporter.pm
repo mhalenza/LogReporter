@@ -33,8 +33,8 @@ has '_all_sources' => (
 
 has '_all_services' => (
     is => 'ro',
-    isa => 'HashRef[ LogReporter::Service ]',
-    default => sub { {} },
+    isa => 'ArrayRef[ LogReporter::Service ]',
+    default => sub { []; },
 );
 
 sub run {
@@ -49,7 +49,7 @@ sub run {
     say "Initializing sources";
     apply { $_->init() } values %{$self->_all_sources};
     say "Initializing services";
-    apply { $_->init() } values %{$self->_all_services};
+    apply { $_->init() } @{$self->_all_services};
     
     say "Running sources";
     apply { $_->run() } values %{$self->_all_sources};
@@ -57,7 +57,7 @@ sub run {
     say "Finalizing sources";
     apply { $_->finalize() } values %{$self->_all_sources};
     say "Finalizing services";
-    apply { $_->finalize() } values %{$self->_all_services};
+    apply { $_->finalize() } @{$self->_all_services};
     
     $self->_collect_output();
 }
@@ -97,15 +97,14 @@ sub _load_filter {
 
 sub _setup_services {
     my ($self, $service_config) = @_;
-    
-    foreach my $svc_name (keys %$service_config){
-        my $svc_config = $service_config->{$svc_name};
-        my $sources = delete $svc_config->{sources};
-        
-        my $src_objs = [ map { $self->_all_sources->{$_} } @$sources ];
+
+    my $it = natatime 2, @{ $service_config };
+    while ( my ($svc_name,$svc_config) = $it->() ){
+        return if $svc_config->{disabled};
         
         my $filters = [];
         my $it = natatime 2, @{ delete $svc_config->{filters} || []};
+        
         while( my ($name, $conf) = $it->() ){
             $self->_load_filter($name);
             push @$filters, "LogReporter::Filter::$name"->new(
@@ -113,6 +112,9 @@ sub _setup_services {
             );
         }
         
+        my $sources = delete $svc_config->{sources};
+        my $src_objs = [ map { $self->_all_sources->{$_} } @$sources ];
+
         $self->_load_service($svc_name);
         my $svc_obj = "LogReporter::Service::$svc_name"->new(
             name => $svc_name,
@@ -121,7 +123,7 @@ sub _setup_services {
             %$svc_config,
         );
         
-        $self->_all_services->{$svc_name} = $svc_obj;
+        push @{ $self->_all_services }, $svc_obj;
     }
 }
 
@@ -149,7 +151,7 @@ sub _collect_output {
     
     $tt2->process('MAIN_HEADER',{ conf => $self->config, START_TIME => $^T },$OUTFH)
       or warn "MAIN_HEADER process: ".$tt2->error();
-    foreach my $service (values %{$self->_all_services}){
+    foreach my $service (@{$self->_all_services}){
         $tt2->process('HEADER',{ svc => $service->name },$OUTFH)
           or warn "HEADER process: ".$tt2->error();
           

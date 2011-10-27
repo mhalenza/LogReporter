@@ -1,8 +1,9 @@
 package LogReporter::Service::NamedQuery;
 use Moose;
-use namespace::autoclean;
+#use namespace::autoclean; # so I can keep SortIP again
 extends 'LogReporter::Service';
 no warnings 'misc';
+use LogReporter::Util qw/SortIP/;
 
 our $RE_IP = '(?:(?:::(?:ffff:|FFFF:)?)?(?:\d{1,3}\.){3}\d{1,3}|(?:[\da-fA-F]{0,4}:){2}(?:[\da-fA-F]{0,4}:){0,5}[\da-fA-F]{0,4})';
 
@@ -26,22 +27,48 @@ override process_line => sub {
 #    if ( $line =~ /client ([^#]+)#(\d+): query: (.+) ([+-]\w*) \(([^)]+)\).*?$/ ){
     if ( $line =~ /client ([^#]+)#(\d+): query: (.+) IN (\w+) ([+-]\w*) \(([^)]+)\).*?$/ ){
         my ($client_ip, $client_port, $query_host, $query_type, $opts, $answer) = ($1,$2,$3,$4,$5);
-        $client_ip =~ s/\./,/g;
-        $query_host =~ s/\./,/g;
-        $query_host =~ s/^_/&/;
+        # ctq
         $self->data->{ctq}->{$client_ip}->{$query_type}->{$query_host}++;
         $self->data->{ctq}->{$client_ip}->{$query_type}->{XXX}++;
         $self->data->{ctq}->{$client_ip}->{XXX}++;
+        # tqc
         $self->data->{tqc}->{$query_type}->{$query_host}->{$client_ip}++;
         $self->data->{tqc}->{$query_type}->{$query_host}->{XXX}++;
         $self->data->{tqc}->{$query_type}->{XXX}++;
+        # qtc
         $self->data->{qtc}->{$query_host}->{$query_type}->{$client_ip}++;
         $self->data->{qtc}->{$query_host}->{$query_type}->{XXX}++;
         $self->data->{qtc}->{$query_host}->{XXX}++;
+        # qct
+        # cqt
+        # tcq
     }
     else {
         $self->data->{'UNMATCHED'}->{$line}++;
     }
 };
+
+override get_output => sub {
+    my ($self) = @_;
+    $self->out_ctq();
+};
+
+sub out_ctq {
+    my ($self) = @_;
+    my $d = $self->data->{ctq};
+    
+    foreach my $client ( sort SortIP keys %{ $d } ){
+        next if $client =~ /^XXX/;
+        printf "  %6d  %s\n", $d->{$client}{XXX}, $client;
+        foreach my $type ( sort keys %{ $d->{$client} } ){
+            next if $type =~ /^XXX/;
+            printf "  %6d    %s\n", $d->{$client}{$type}{XXX}, $type;
+            foreach my $query ( sort keys %{ $d->{$client}{$type} } ){
+                next if $query =~ /^XXX/;
+                printf "  %6d      %s\n", $d->{$client}{$type}{$query}, $query;
+            }
+        }
+    }
+}
 
 1;

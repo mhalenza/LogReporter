@@ -683,7 +683,7 @@ sub handle_QID {
         
         # sasl_sender occurs when AUTH verb is present in MAIL FROM, typically used for relaying
         # the username (eg. sasl_username) of authenticated users.
-        if ($Sender) {
+        if ( defined $Sender ){
             $data->{Totals}->{'SaslAuthRelay'}++;
             $data->{Counts}->{'SaslAuthRelay'}{"$Sender ($User)"}{$Method}{formathost($hostip,$host)}++;
         } else {
@@ -832,10 +832,10 @@ sub handle_QID_reject {
             #TD NOQUEUE: reject: RCPT from example.com[10.0.0.1]: 554 5.7.1 Service unavailable; Client host [10.0.0.1] blocked using sbl-xbl.spamhaus.org; http://www.spamhaus.org/query/bl?ip=10.0.0.1; from=<from@example.com> to=<to@sample.net> proto=ESMTP helo=<friend>
             #TD NOQUEUE: reject_warning: RCPT from example.com[10.0.0.1]: 554 5.7.1 Service unavailable; Client host [10.0.0.1] blocked using sbl-xbl.spamhaus.org; http://www.spamhaus.org/query/bl?ip=10.0.0.1; from=<from@example.com> to=<to@sample.net> proto=ESMTP helo=<friend>
             $data->{Totals}->{"${rej_action}RBL"}++;
-            if ($reason =~ /^$/) {
-                $data->{Counts}->{"${rej_action}RBL"}{$site}{formathost($hostip,$host)}++;
-            } else {
+            if (defined $reason) {
                 $data->{Counts}->{"${rej_action}RBL"}{$site}{formathost($hostip,$host)}{$reason}++;
+            } else {
+                $data->{Counts}->{"${rej_action}RBL"}{$site}{formathost($hostip,$host)}++;
             }
         }
         

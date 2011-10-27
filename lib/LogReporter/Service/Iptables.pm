@@ -110,7 +110,7 @@ override get_output => sub {
     foreach my $prefix ( grep { !/^XXX/ } keys %{ $data } ){
         printf "%s\n", $prefix;
         foreach my $toport ( grep { !/^XXX/ } keys %{ $data->{$prefix} } ){
-            foreach my $proto ( keys %{ $data->{$prefix}{$toport} } ){
+            foreach my $proto ( grep { !/^XXX/ } keys %{ $data->{$prefix}{$toport} } ){
                 printf "  % 4d  Service %s (%s/%s)\n",
                     $data->{$prefix}{$toport}{$proto}{XXX},
                     $data->{$prefix}{$toport}{$proto}{XXX_service},

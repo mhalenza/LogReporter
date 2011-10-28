@@ -54,20 +54,20 @@ sub run {
     my $services = $self->_services;
 
     unless (length @$services){
-        warn "Skipping source " . $self->name() . " because no interested services.\n";
+        print STDERR "Skipping source " . $self->name() . " because no interested services.\n";
         return;
     }
     
     LINE: while( my $line = $self->get_line() ){
         my $meta = {};
-#        say "L: $line";
+#        print STDERR "L: $line";
         foreach my $filter (@$filters){
-#            say " F: $filter";
+#            print STDERR " F: $filter";
             unless ( $filter->filter(\$line,$meta) ){
                 next LINE;
             }
         }
-#        say " L: $line\n";
+#        print STDERR " L: $line\n";
         foreach my $service (@$services){
             $service->process_line( $line, $meta );
         }

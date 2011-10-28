@@ -15,7 +15,8 @@ use LogReporter;
 
 #my $ConfigDir = "/usr/local/logreporter/conf/";
 my $ConfigDir = "$FindBin::Bin/../conf/";
-my $PerlVersion = "$^X";
+
+print STDERR "Starting logreporter run at ".localtime()."\n";
 
 ### Load config
 my $all_config = read_config($ConfigDir . 'logreporter.conf');
@@ -27,7 +28,7 @@ LogReporter->new(
 
 sub read_config {
     my ($name) = @_;
-    say "Loading config from '$name'";
+    print STDERR "Loading config from '$name'\n";
     our $config;
     do $name;
     die $@ if $@;

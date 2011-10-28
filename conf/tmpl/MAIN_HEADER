@@ -1,14 +1,18 @@
-{{ USE date }}
+{{ USE date -}}
+From: LogReporter <logreporter@li02.msk4.com>
+To: root <root@li02.msk4.com>
+Reply-To: "msk4 Admin" <admin@msk4.com>
+Subject: LogReport for {{ date.format(date.now, '%b %d %Y') +}}
+Date: {{ date.format(date.now, '%a, %d %b %Y %H:%M:%S %z') +}}
+Message-ID: <{{ date.format(date.now, 'lr.%S%M%H%d%m%Y') }}@li02.msk4.com>
+MIME-Version: 1.0
+Content-Type: text/html
+
+<html><pre>
 ##################### LogReporter ({{ date.format(date.now,'%d/%m/%Y') }}) #####################
-       Processing Initiated: {{ date.format(START_TIME,'%Y/%m/%d %H:%M:%S') }} 
-
-       Date Range Processed: {{ date.format(conf.Range.start.epoch, '%Y/%m/%d %H:%M:%S') }} 
-
-                             {{ date.format(conf.Range.end.epoch, '%Y/%m/%d %H:%M:%S') }} 
-
-     Detail Level of Output: {{ conf.Detail }} 
-
-          Logfiles for Host: {{ host }} 
-
+       Processing Initiated: {{ date.format(START_TIME,'%Y/%m/%d %H:%M:%S') +}}
+       Date Range Processed: {{ date.format(conf.Range.start.epoch, '%Y/%m/%d %H:%M:%S') +}}
+                             {{ date.format(conf.Range.end.epoch, '%Y/%m/%d %H:%M:%S') +}}
+          Logfiles for Host: {{ host +}}
 ####################################################################
 

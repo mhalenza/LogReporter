@@ -46,7 +46,7 @@ override init => sub {
     foreach my $file ( @files ){
         eval {
             open my $FH, "<", $file or die $!;
-            print "  Opened $file\n";
+            print STDERR "  Opened $file\n";
             $self->_fh_set($file, $FH);
         };
         warn "  Failed to open $file:  $@" if $@;
@@ -57,12 +57,12 @@ override run => sub {
     my ($self) = @_;
 
     unless ($self->_services_count){
-        print "Skipping source " . $self->name() . " because no interested services\n";
+        print STDERR "Skipping source " . $self->name() . " because no interested services\n";
         return;
     }
 
     foreach my $kv ($self->_fh_pairs) {
-        say "FS: " . $kv->[0];
+        print STDERR "FS: " . $kv->[0];
         $self->_active_fh($kv->[1]);
         super();
     }

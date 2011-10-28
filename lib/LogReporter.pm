@@ -46,17 +46,17 @@ sub run {
     $self->_setup_sources($source_config);
     $self->_setup_services($service_config);
     
-    say "Initializing sources";
+    print STDERR "Initializing sources\n";
     apply { $_->init() } values %{$self->_all_sources};
-    say "Initializing services";
+    print STDERR "Initializing services\n";
     apply { $_->init() } @{$self->_all_services};
     
-    say "Running sources";
+    print STDERR "Running sources\n";
     apply { $_->run() } values %{$self->_all_sources};
     
-    say "Finalizing sources";
+    print STDERR "Finalizing sources\n";
     apply { $_->finalize() } values %{$self->_all_sources};
-    say "Finalizing services";
+    print STDERR "Finalizing services\n";
     apply { $_->finalize() } @{$self->_all_services};
     
     $self->_collect_output();
@@ -78,7 +78,6 @@ sub _setup_sources {
             );
         }
         
-#        say Dumper($files,$filters);
         my $src_obj = LogReporter::Source::File->new(
             name => $src_name,
             files => $files,
@@ -145,7 +144,7 @@ sub _collect_output {
         POST_CHOMP => 1,
     );
     
-    say "Collecting output";
+    print STDERR "Collecting output\n";
     my $all_output;
     open my $OUTFH, '>', \$all_output or die "open(\\\$all_output): $!";
     
@@ -165,7 +164,8 @@ sub _collect_output {
     $tt2->process('MAIN_FOOTER',{ conf => $self->config },$OUTFH)
       or warn "MAIN_FOOTER process: ". $tt2->error();
     
-    print "FINAL OUTPUT:\n$all_output";
+    #print STDERR "FINAL OUTPUT:\n$all_output";
+    print $all_output; # This should be the *only* thing that prints to STDOUT!
 }
 
 

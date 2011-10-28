@@ -30,6 +30,39 @@ has 'proc' => (
     },
 );
 
+has 'report' => (
+    is => 'ro',
+    isa => 'CodeRef',
+    traits => ['Code'],
+    required => 1,
+    handles => {
+        callreport => 'execute',
+    },
+    default => sub {
+        return sub {
+            my ($data) = @_;
+            
+            foreach my $prefix ( grep { !/^XXX/ } keys %{ $data } ){
+                printf "%s\n", $prefix;
+                foreach my $toport ( grep { !/^XXX/ } keys %{ $data->{$prefix} } ){
+                    foreach my $proto ( grep { !/^XXX/ } keys %{ $data->{$prefix}{$toport} } ){
+                        printf "  % 4d  Service %s (%s/%s)\n",
+                        $data->{$prefix}{$toport}{$proto}{XXX},
+                        $data->{$prefix}{$toport}{$proto}{XXX_service},
+                        $proto,
+                        $toport;
+                        foreach my $fromip ( sort SortIP grep { !/^XXX/ } keys %{ $data->{$prefix}{$toport}{$proto} } ){
+                            printf "  % 4d    %s\n",
+                            $data->{$prefix}{$toport}{$proto}{$fromip},
+                            $fromip;
+                        }
+                    }
+                }
+            }
+        };
+    },
+);
+
 my $iptables_fmt = qr/^
     (?<prefix>.*?)
     \s*
@@ -105,25 +138,7 @@ no warnings 'uninitialized';
 
 override get_output => sub {
     my ($self) = @_;
-    my $data = $self->data;
-    
-    foreach my $prefix ( grep { !/^XXX/ } keys %{ $data } ){
-        printf "%s\n", $prefix;
-        foreach my $toport ( grep { !/^XXX/ } keys %{ $data->{$prefix} } ){
-            foreach my $proto ( grep { !/^XXX/ } keys %{ $data->{$prefix}{$toport} } ){
-                printf "  % 4d  Service %s (%s/%s)\n",
-                    $data->{$prefix}{$toport}{$proto}{XXX},
-                    $data->{$prefix}{$toport}{$proto}{XXX_service},
-                    $proto,
-                    $toport;
-                foreach my $fromip ( sort SortIP grep { !/^XXX/ } keys %{ $data->{$prefix}{$toport}{$proto} } ){
-                    printf "  % 4d    %s\n",
-                        $data->{$prefix}{$toport}{$proto}{$fromip},
-                        $fromip;
-                }
-            }
-        }
-    }
+    $self->callreport($self->data);
 };
 
 1;

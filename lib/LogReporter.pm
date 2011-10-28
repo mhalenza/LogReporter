@@ -99,7 +99,7 @@ sub _setup_services {
 
     my $it = natatime 2, @{ $service_config };
     while ( my ($svc_name,$svc_config) = $it->() ){
-        return if $svc_config->{disabled};
+        next if $svc_config->{disabled};
         
         my $filters = [];
         my $it = natatime 2, @{ delete $svc_config->{filters} || []};

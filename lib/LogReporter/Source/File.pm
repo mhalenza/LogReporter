@@ -62,7 +62,7 @@ override run => sub {
     }
 
     foreach my $kv ($self->_fh_pairs) {
-        print STDERR "FS: " . $kv->[0];
+        print STDERR "FS: " . $kv->[0] . "\n";
         $self->_active_fh($kv->[1]);
         super();
     }

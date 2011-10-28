@@ -13,13 +13,12 @@ use lib "$FindBin::Bin/../lib";
 
 use LogReporter;
 
-#my $ConfigDir = "/usr/local/logreporter/conf/";
-my $ConfigDir = "$FindBin::Bin/../conf/";
+my $config = $ARGV[0] || "$FindBin::Bin/../conf/logreporter.conf";
 
 print STDERR "Starting logreporter run at ".localtime()."\n";
 
 ### Load config
-my $all_config = read_config($ConfigDir . 'logreporter.conf');
+my $all_config = read_config($config);
 #say Dumper($all_config);
 
 LogReporter->new(

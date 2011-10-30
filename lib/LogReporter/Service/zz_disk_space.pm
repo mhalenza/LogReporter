@@ -34,10 +34,9 @@ override get_output => sub {
         print "\n";
         my $du_cmd = $self->du_cmd;
         print "Size    Directory\n";
-        foreach my $dir ( @{ $self->dirs } ){
-            (my $cmd = $du_cmd) =~ s/\$XXX/$dir/;
-            print `$cmd`;
-        }
+        my $dirs = join ' ', @{ $self->dirs };
+        $du_cmd =~ s/\$XXX/$dirs/;
+        print `$du_cmd`;
     }
 };
 

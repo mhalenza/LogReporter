@@ -3,3 +3,5 @@
 \#*#
 /scripts/service*
 /tmp
+conf/*.conf
+conf/*.pl

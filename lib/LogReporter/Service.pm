@@ -34,7 +34,15 @@ sub init {
 
 sub process_line {
     my ($self, $line, $meta) = @_;
-    die "Not implemented!";
+    my $filters = $self->filters;
+    foreach my $filter (@$filters){
+#       print STDERR "  F: $filter\n";
+        unless ( $filter->filter(\$line,$meta) ){
+            return 0;
+        }
+#       print STDERR "    L: $line\n";
+    }
+    return 1;
 }
 
 sub finalize {

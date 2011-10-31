@@ -1,6 +1,5 @@
 package LogReporter::Service::zz_disk_space;
 use Moose;
-use namespace::autoclean;
 extends 'LogReporter::Service';
 no warnings 'misc';
 
@@ -40,4 +39,6 @@ override get_output => sub {
     }
 };
 
+
+__PACKAGE__->meta->make_immutable;
 1;

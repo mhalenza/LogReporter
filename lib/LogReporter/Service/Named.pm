@@ -1,6 +1,5 @@
 package LogReporter::Service::Named;
 use Moose;
-use namespace::autoclean;
 extends 'LogReporter::Service';
 no warnings 'misc';
 
@@ -288,4 +287,6 @@ override process_line => sub {
     }
 };
 
+
+__PACKAGE__->meta->make_immutable;
 1;

@@ -1,7 +1,6 @@
 package LogReporter::Service::Iptables;
 use feature ':5.10';
 use Moose;
-#use namespace::autoclean; # turned off because it cleans up SortIP
 extends 'LogReporter::Service';
 use LogReporter::Util qw/SortIP/;
 no warnings 'misc';
@@ -141,4 +140,6 @@ override get_output => sub {
     $self->callreport($self->data);
 };
 
+
+__PACKAGE__->meta->make_immutable;
 1;

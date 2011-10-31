@@ -1,6 +1,5 @@
 package LogReporter::Source::File;
 use Moose;
-use namespace::autoclean;
 use feature ':5.10';
 use File::Glob qw/bsd_glob/;
 
@@ -90,4 +89,6 @@ override finalize => sub {
     $self->_fh_clear();
 };
 
+
+__PACKAGE__->meta->make_immutable;
 1;

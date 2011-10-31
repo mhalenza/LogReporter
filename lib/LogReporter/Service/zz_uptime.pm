@@ -1,6 +1,5 @@
 package LogReporter::Service::zz_uptime;
 use Moose;
-use namespace::autoclean;
 extends 'LogReporter::Service';
 no warnings 'misc';
 
@@ -9,4 +8,6 @@ override get_output => sub {
     print `uptime`;
 };
 
+
+__PACKAGE__->meta->make_immutable;
 1;

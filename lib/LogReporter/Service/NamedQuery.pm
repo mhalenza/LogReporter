@@ -1,6 +1,5 @@
 package LogReporter::Service::NamedQuery;
 use Moose;
-#use namespace::autoclean; # so I can keep SortIP again
 extends 'LogReporter::Service';
 no warnings 'misc';
 use LogReporter::Util qw/SortIP/;
@@ -71,4 +70,6 @@ sub out_ctq {
     }
 }
 
+
+__PACKAGE__->meta->make_immutable;
 1;

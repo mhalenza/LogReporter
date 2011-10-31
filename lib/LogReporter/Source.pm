@@ -1,6 +1,5 @@
 package LogReporter::Source;
 use Moose;
-use namespace::autoclean;
 use feature ':5.10';
 
 has 'name' => (
@@ -75,4 +74,5 @@ sub run {
 }
 
 
+__PACKAGE__->meta->make_immutable;
 1;

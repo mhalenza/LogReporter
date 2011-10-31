@@ -1,6 +1,5 @@
 package LogReporter;
 use MooseX::Singleton;
-use namespace::autoclean;
 use feature ':5.10';
 
 use LogReporter::Util;
@@ -169,4 +168,5 @@ sub _collect_output {
 }
 
 
+__PACKAGE__->meta->make_immutable;
 1;

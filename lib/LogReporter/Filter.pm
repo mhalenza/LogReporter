@@ -1,6 +1,5 @@
 package LogReporter::Filter;
 use Moose;
-use namespace::autoclean;
 
 #requires 'filter';
 
@@ -11,4 +10,5 @@ sub filter {
 }
 
 
+__PACKAGE__->meta->make_immutable;
 1;

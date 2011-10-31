@@ -1,6 +1,5 @@
 package LogReporter::Service::Postfix;
 use Moose;
-use namespace::autoclean;
 extends 'LogReporter::Service';
 no warnings 'misc';
 use LogReporter::Service::Postfix::Constants;
@@ -1375,5 +1374,5 @@ sub printTree {
 }
 
 
-
+__PACKAGE__->meta->make_immutable;
 1;

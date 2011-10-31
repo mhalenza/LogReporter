@@ -5,7 +5,21 @@ use feature ':5.10';
 
 use Exporter 'import';
 our @EXPORT = (qw());
-our @EXPORT_OK = (qw(canonical_ipv6_address SortIP unitize));
+our @EXPORT_OK = (qw(unitize SortIP LookupIP));
+
+sub unitize {
+    my ($num) = @_;
+    my $kilobyte = 1024;
+    my $megabyte = 1048576;
+    my $gigabyte = 1073741824;
+    my $terabyte = 1099511627776;
+
+    return sprintf "%.3f TB", ($num / $terabyte)  if ($num >= $terabyte);
+    return sprintf "%.3f GB", ($num / $gigabyte)  if ($num >= $gigabyte);
+    return sprintf "%.3f MB", ($num / $megabyte)  if ($num >= $megabyte);
+    return sprintf "%.3f KB", ($num / $kilobyte)  if ($num >= $kilobyte);
+    return sprintf "%.3f  B", ($num);
+}
 
 sub canonical_ipv6_address {
     my @a = split /:/, shift;
@@ -44,18 +58,28 @@ sub SortIP {
     }
 }
 
-sub unitize {
-    my ($num) = @_;
-    my $kilobyte = 1024;
-    my $megabyte = 1048576;
-    my $gigabyte = 1073741824;
-    my $terabyte = 1099511627776;
-
-    return sprintf "%.3f TB", ($num / $terabyte)  if ($num >= $terabyte);
-    return sprintf "%.3f GB", ($num / $gigabyte)  if ($num >= $gigabyte);
-    return sprintf "%.3f MB", ($num / $megabyte)  if ($num >= $megabyte);
-    return sprintf "%.3f KB", ($num / $kilobyte)  if ($num >= $kilobyte);
-    return sprintf "%.3f  B", ($num);
+my %LookupCache = ();
+sub LookupIP {
+    my ($Addr) = @_;
+    return $LookupCache{$Addr} if exists $LookupCache{$Addr};
+    
+    $Addr =~ s/^::ffff://;
+    
+    my ($name);
+    if ($Addr =~ /^[\d\.]*$/) {
+        my $PackedAddr = pack('C4', split /\./,$Addr);
+        $name = gethostbyaddr($PackedAddr,AF_INET());
+    } elsif ($Addr =~ /^[0-9a-zA-Z:]*/) {
+        my $PackedAddr = pack('n8', canonical_ipv6_address($Addr));
+        $name = gethostbyaddr($PackedAddr, AF_INET6());
+    }
+    
+    if ($name) {
+        my $val = "$Addr ($name)";
+        $LookupCache{$Addr} = $val;
+        return $val;
+    } else {
+        $LookupCache{$Addr} = $Addr;
+        return ($Addr);
+    }
 }
-
-1;

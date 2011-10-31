@@ -1,0 +1,8 @@
+From: LogReporter <logreporter@li02.msk4.com>
+To: root <root@li02.msk4.com>
+Reply-To: "msk4 Admin" <admin@msk4.com>
+Subject: LogReport for {{ date.format(date.now, '%b %d %Y') +}}
+Date: {{ date.format(date.now, '%a, %d %b %Y %H:%M:%S %z') +}}
+Message-ID: <{{ date.format(date.now, 'lr.%S%M%H%d%m%Y') }}@li02.msk4.com>
+MIME-Version: 1.0
+Content-Type: text/html

@@ -1,12 +1,10 @@
-#$Range = DateTime::Span->from_datetime_and_duration(
-#    start => DateTime->today(),
-#    days => 1,
-#);
+require DateTime::Span;
+require DateTime;
 $Range = DateTime::Span->from_datetimes(
     start => DateTime->new(qw/year 2011 month 10 day 16 hour 0 minute 0 second 0/),
     end => DateTime->now(),
 );
-$config = {
+{
     sources => {
         'maillog' => {
             files => [qw(

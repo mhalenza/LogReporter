@@ -43,12 +43,13 @@ override init => sub {
         }
     }
     foreach my $file ( @files ){
-        eval {
-            open my $FH, "<", $file or die $!;
+        if ( open(my $FH, "<", $file) ){
             print STDERR "  Opened $file\n";
             $self->_fh_set($file, $FH);
-        };
-        warn "  Failed to open $file:  $@" if $@;
+        } else {
+            print STDERR "  Failed to open $file:  $!\n";
+        }
+        
     }
 };
 

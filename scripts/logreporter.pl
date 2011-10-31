@@ -12,25 +12,19 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";
 
 use LogReporter;
+use LogReporter::ConfigLoader;
 
-my $config = $ARGV[0] || "$FindBin::Bin/../conf/logreporter.conf";
+my $config_file = $ARGV[0] || "$FindBin::Bin/../conf/logreporter.perl";
 
 print STDERR "Starting logreporter run at ".localtime()."\n";
 
 ### Load config
-my $all_config = read_config($config);
-#say Dumper($all_config);
+print STDERR "Loading config from '$config_file'\n";
+my $config = LoadConfig($config_file);
+#say Dumper($config);
 
 LogReporter->new(
-    config => $all_config,
+    config => $config,
 )->run();
 
-sub read_config {
-    my ($name) = @_;
-    print STDERR "Loading config from '$name'\n";
-    our $config;
-    do $name;
-    die $@ if $@;
-    return $config;
-}
-
+exit 0;

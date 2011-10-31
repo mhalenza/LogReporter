@@ -55,6 +55,20 @@ $Range = DateTime::Span->from_datetimes(
                 DateRange => { range => $Range },
             ],
         },
+        'auth' => {
+            files => [qw(
+                /var/log/syslog/auth.log
+                /var/log/archive/auth.log.*
+                /var/log/archive/auth.log-*
+                $FindBin::Bin/../auth.log
+            )],
+            filters => [
+                ISO8601 => { format => '^(\S+)\s+' },
+                DateRange => { range => $Range },
+                Syslog => { format => '^(?<h>\w+)\s+\[(?<l>[^\]]+)\]\s+' },
+                Parser => { format => '^(?<p>\S+)\(\d+\):\s+' },
+            ],
+        },
     },
     services => [
         Postfix => {
@@ -64,7 +78,7 @@ $Range = DateTime::Span->from_datetimes(
             print_details => 0,
         },
         Iptables => { sources => ['iptables'],
-#            disabled => 1,
+            disabled => 1,
             proc => sub {
                 my ($d, $actionType, $interface, $fromip, $toip, $toport, $svc, $proto, $prefix) = @_;
                 $d->{$prefix}{$toport}{$proto}{$fromip}++;
@@ -102,6 +116,10 @@ $Range = DateTime::Span->from_datetimes(
         NamedQuery => {
             disabled => 1,
             sources => ['named_query']
+        },
+        OpenSSHd => {
+#            disabled => 1,
+            sources => ['auth'],
         },
 #        zz_disk_space => { dirs => ['/etc','/var/log','/opt'], },
 #        zz_uptime => { },

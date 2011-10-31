@@ -2,10 +2,11 @@ package LogReporter::Util;
 use strict;
 use warnings;
 use feature ':5.10';
+use Socket;
 
 use Exporter 'import';
 our @EXPORT = (qw());
-our @EXPORT_OK = (qw(unitize SortIP LookupIP));
+our @EXPORT_OK = (qw(unitize SortIP LookupIP schwartz schwartzn));
 
 sub unitize {
     my ($num) = @_;
@@ -61,6 +62,7 @@ sub SortIP {
 my %LookupCache = ();
 sub LookupIP {
     my ($Addr) = @_;
+    return $Addr;
     return $LookupCache{$Addr} if exists $LookupCache{$Addr};
     
     $Addr =~ s/^::ffff://;
@@ -83,3 +85,39 @@ sub LookupIP {
         return ($Addr);
     }
 }
+
+sub schwartz(&@) {
+    my $xfm = shift;
+    return  map { $_->[0] }
+            sort { $a->[1] cmp $b->[1] }
+            map { [$_, $xfm->($_) ] }
+                @_;
+}
+sub schwartzn(&@) {
+    my $xfm = shift;
+    return  map { $_->[0] }
+            sort { $a->[1] <=> $b->[1] }
+            map { [$_, $xfm->($_) ] }
+                @_;
+}
+
+sub href_iter {
+    my ($href) = @_;
+    my @keys = sort keys %$href;
+    return sub {
+        my $k = shift @keys;
+        return defined $k ? ($k, $href->{$k}) : undef;
+    };
+}
+
+sub href_iter_sorted {
+    my ($href,$xfm) = @_;
+    my @keys = schwartz { $xfm->($_) } keys %$href;
+    return sub {
+        my $k = shift @keys;
+        return defined $k ? ($k, $href->{$k}) : undef;
+    };
+}
+
+
+1;

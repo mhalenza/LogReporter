@@ -6,7 +6,7 @@ use Socket;
 
 use Exporter 'import';
 our @EXPORT = (qw());
-our @EXPORT_OK = (qw(unitize SortIP LookupIP schwartz schwartzn));
+our @EXPORT_OK = (qw(unitize SortIP LookupIP schwartz schwartzn schwerz schwerzn));
 
 sub unitize {
     my ($num) = @_;
@@ -100,23 +100,19 @@ sub schwartzn(&@) {
             map { [$_, $xfm->($_) ] }
                 @_;
 }
-
-sub href_iter {
-    my ($href) = @_;
-    my @keys = sort keys %$href;
-    return sub {
-        my $k = shift @keys;
-        return defined $k ? ($k, $href->{$k}) : undef;
-    };
+sub schwerz(&@) {
+    my $xfm = shift;
+    return  map { $_->[0] }
+            reverse sort { $a->[1] cmp $b->[1] }
+            map { [$_, $xfm->($_) ] }
+                @_;
 }
-
-sub href_iter_sorted {
-    my ($href,$xfm) = @_;
-    my @keys = schwartz { $xfm->($_) } keys %$href;
-    return sub {
-        my $k = shift @keys;
-        return defined $k ? ($k, $href->{$k}) : undef;
-    };
+sub schwerzn(&@) {
+    my $xfm = shift;
+    return  map { $_->[0] }
+            reverse sort { $a->[1] <=> $b->[1] }
+            map { [$_, $xfm->($_) ] }
+                @_;
 }
 
 

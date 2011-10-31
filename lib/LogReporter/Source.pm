@@ -59,14 +59,15 @@ sub run {
     
     LINE: while( my $line = $self->get_line() ){
         my $meta = {};
-#        print STDERR "L: $line";
+#        print STDERR "L: $line\n";
         foreach my $filter (@$filters){
-#            print STDERR " F: $filter";
+#            print STDERR "  F: $filter\n";
             unless ( $filter->filter(\$line,$meta) ){
                 next LINE;
             }
+#            print STDERR "    L: $line\n";
         }
-#        print STDERR " L: $line\n";
+#        print STDERR " FinL: $line\n";
         foreach my $service (@$services){
             $service->process_line( $line, $meta );
         }

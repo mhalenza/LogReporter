@@ -1,11 +1,28 @@
 require DateTime::Span;
 require DateTime;
+# Lets specify what time range we're interested in:
 $Range = DateTime::Span->from_datetimes(
     start => DateTime->new(qw/year 2011 month 10 day 16 hour 0 minute 0 second 0/),
     end => DateTime->now(),
 );
+
 {
+# First we setup the "sources" which are just logfiles.
     sources => {
+=pod
+The format of this hashref is:
+<source_name> => {
+    files => ARRAY_REF,  # all logfiles that are included in this source, *'s are expanded
+    filters => [
+        <filter_name> => $OPTIONS_HASH_REF,
+        # LogReporter::Filter::<filter_name> will be loaded and passed %{ $OPTIONS }
+        # The first two filters will almost always be  DATE (or ISO8601, Strptime, etc)
+        # followed by DateRange:
+        ISO8601 => { format => '^(\S+)\s+' },
+        DateRange => { range => $Range },
+    ],
+}
+=cut
         'maillog' => {
             files => [qw(
                 /var/log/syslog/mail.log
@@ -31,54 +48,34 @@ $Range = DateTime::Span->from_datetimes(
                 Syslog => { format => '^(?<h>\w+)\s+' },
             ],
         },
-        'named' => {
-            files => [qw(
-                /var/log/named/main.log
-                /var/log/archive/named/main.log.*
-                /var/log/archive/named/main.log-*
-            )],
-            filters => [
-                Strptime => { finder => '^(\d+-\w+-\d+\s+\d+:\d+:\d+)\.\d+\s+', format => '%d-%b-%Y%t%H:%M:%S' },
-                DateRange => { range => $Range },
-                Parser => { format => '^(?<f>\w+):\s+(?<l>\w+):\s+' },
-            ],
-        },
-        'named_query' => {
-            files => [qw(
-                /var/log/named/query.log
-                /var/log/archive/named/query.log.*
-                /var/log/archive/named/query.log-*
-                /var/log/archive/named/query.log-2011101*
-            )],
-            filters => [
-                Strptime => { finder => '^(\d+-\w+-\d+\s+\d+:\d+:\d+)\.\d+\s+', format => '%d-%b-%Y%t%H:%M:%S' },
-                DateRange => { range => $Range },
-            ],
-        },
-        'auth' => {
-            files => [qw(
-                /var/log/syslog/auth.log
-                /var/log/archive/auth.log.*
-                /var/log/archive/auth.log-*
-                $FindBin::Bin/../auth.log
-            )],
-            filters => [
-                ISO8601 => { format => '^(\S+)\s+' },
-                DateRange => { range => $Range },
-                Syslog => { format => '^(?<h>\w+)\s+\[(?<l>[^\]]+)\]\s+' },
-                Parser => { format => '^(?<p>\S+)\(\d+\):\s+' },
-            ],
-        },
     },
+
+# Now we can setup the services
     services => [
+=pod
+This is an arrayref, but it's basically a hash:
+<service_name> => { #
+    disabled => 0, # if 1, this service is skipped
+    sources => ARRAY_REF, # an arrayref of strings: ['<source1_name>','<source2_name>',etc]
+    filters => [
+        #same as for sources, but you'll probably only ever use Meta or Parser here.
+    ]
+    %OPTIONS, # everything else is passed to new()
+},
+=cut
         Postfix => {
-            disabled => 1,
+            disabled => 0,
             sources => ['maillog'],
+            # the Postfix service has two options:
             print_summaries => 1,
             print_details => 0,
         },
-        Iptables => { sources => ['iptables'],
-            disabled => 1,
+        Iptables => {
+            disabled => 0,
+            sources => ['iptables'],
+            # the Iptables has two options:
+            
+            # proc - a subref that is called for every matching line:
             proc => sub {
                 my ($d, $actionType, $interface, $fromip, $toip, $toport, $svc, $proto, $prefix) = @_;
                 $d->{$prefix}{$toport}{$proto}{$fromip}++;
@@ -87,6 +84,7 @@ $Range = DateTime::Span->from_datetimes(
                 $d->{$prefix}{$toport}{XXX}++;
                 $d->{$prefix}{XXX}++;
             },
+            # report - a subref that is called when it's time to generate the report.  use print/printf to output the report
             report => sub {
                 use LogReporter::Util qw/SortIP/;
                 my ($data) = @_;
@@ -109,22 +107,11 @@ $Range = DateTime::Span->from_datetimes(
                 }
             },
         },
-        Named => {
-            disabled => 1,
-            sources => ['named']
-        },
-        NamedQuery => {
-            disabled => 1,
-            sources => ['named_query']
-        },
-        OpenSSHd => {
-#            disabled => 1,
-            sources => ['auth'],
-        },
-#        zz_disk_space => { dirs => ['/etc','/var/log','/opt'], },
-#        zz_uptime => { },
+        # And two fun little guys
+        zz_disk_space => { dirs => ['/etc','/var/log','/opt'], },
+        zz_uptime => { },
     ],
     
+    # This is really only here so the report header can use it.
     Range => $Range,
-    Host => 'li02.msk4.com',
 }

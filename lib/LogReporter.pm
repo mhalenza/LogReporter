@@ -150,15 +150,22 @@ sub _collect_output {
     $tt2->process('MAIN_HEADER',{ conf => $self->config, START_TIME => $^T },$OUTFH)
       or warn "MAIN_HEADER process: ".$tt2->error();
     foreach my $service (@{$self->_all_services}){
+        my $p_pos = tell($OUTFH);
         $tt2->process('HEADER',{ svc => $service->name },$OUTFH)
           or warn "HEADER process: ".$tt2->error();
-          
+        
+        my $h_pos = tell($OUTFH);
         my $old_stdout = select($OUTFH);
         $service->get_output();
         select($old_stdout);
+        my $f_pos = tell($OUTFH);
         
         $tt2->process('FOOTER',{ svc => $service->name },$OUTFH)
           or warn "FOOTER process: " . $tt2->error();
+        
+        if ($h_pos == $f_pos){
+            seek($OUTFH,$p_pos,0);
+        }
     }
     $tt2->process('MAIN_FOOTER',{ conf => $self->config },$OUTFH)
       or warn "MAIN_FOOTER process: ". $tt2->error();

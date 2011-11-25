@@ -1070,7 +1070,6 @@ sub handle_QID_sfbdu { # sent, forwarded, bounced, softbounce, deferred, (un)del
 }
 
 
-
 override get_output => sub {
     my ($self) = @_;
     my $d = $self->data;
@@ -1098,7 +1097,7 @@ override get_output => sub {
     p1($d,'LdapError',              "LDAP error");
     p1($d,'WarningsOther',          "Miscellaneous warnings");
     p1($d,'TotalRejectWarns',       "Reject warnings (warn_if_reject)");
-    printf "=====\n\n";
+    printf "====================\n\n";
     
     #if ( exists $d->{Totals}->{'BytesAccepted'} && $d->{Totals}->{'BytesAccepted'} > 0 ){
         printf "  %s  Bytes Accepted\n",  unitize($d->{Totals}->{'BytesAccepted'});
@@ -1106,13 +1105,13 @@ override get_output => sub {
     #if ( exists $d->{Totals}->{'BytesDelivered'} && $d->{Totals}->{'BytesDelivered'} > 0 ){
         printf "  %s  Bytes Delivered\n", unitize($d->{Totals}->{'BytesDelivered'});
     #}
-    printf "=====\n\n";
+    printf "====================\n\n";
     
     p2($d,'MsgsAccepted','Accepted','TotalAcceptPlusReject');
     p2($d,'TotalRejects','Rejected','TotalAcceptPlusReject');
     printf "-----  -------   ---------\n";
     p2($d,'TotalAcceptPlusReject','Total','TotalAcceptPlusReject');
-    printf "=====\n\n";
+    printf "\n";
     
     if ( $self->print_summaries ){
         printf "***** Summary ********************\n";
@@ -1134,7 +1133,7 @@ override get_output => sub {
         p2($d,'RejectVerify',              "Reject VRFY",                       'TotalRejects');
         printf "-----  -------   ---------------------------\n";
         p2($d,'TotalRejects',              "Total Rejects",                     'TotalRejects');
-        printf "=====\n\n";
+        printf "\n";
         
         p2($d,'TempRejectRelay',               "4xx Reject relay denied",               'TotalTempRejects');
         p2($d,'TempRejectHelo',                "4xx Reject HELO/EHLO",                  'TotalTempRejects');
@@ -1154,7 +1153,7 @@ override get_output => sub {
         p2($d,'TempRejectVerify',              "4xx Reject VRFY",                       'TotalTempRejects');
         printf "-----  -------   ---------------------------\n";
         p2($d,'TotalTempRejects',              "Total 4xx Rejects",                     'TotalTempRejects');
-        printf "=====\n\n";
+        printf "\n";
         
         p1($d,'RejectWarnRelay',                "Reject warning relay denied");
         p1($d,'RejectWarnHelo',                 "Reject warning HELO/EHLO");
@@ -1170,7 +1169,7 @@ override get_output => sub {
         p1($d,'RejectWarnVerify',               "Reject warning VRFY");
         printf "-----   ---------------------------\n";
         p1($d,'TotalRejectWarns',               "Total Reject Warnings");
-        printf "=====\n\n";
+        printf "\n";
         
         p1($d,'ConnectionInbound',       "Connections made");
         p1($d,'ConnectionLost',          "Connections lost");
@@ -1194,7 +1193,7 @@ override get_output => sub {
         p1($d,'DSNUndelivered',          "DSNs undeliverable");
         p1($d,'PolicySPF',               "Policy SPF");
         p1($d,'PolicydWeight',           "Policyd-weight");
-        printf "=====\n\n";
+        printf "\n";
 
         p1($d,'ConnectToFailure',        "Connection failure (outbound)");
         p1($d,'TimeoutInbound',          "Timeout (inbound)");
@@ -1219,7 +1218,7 @@ override get_output => sub {
         p1($d,'SaslAuthRelay',           "SASL authenticated relayed messages");
         p1($d,'TlsUnverified',           "TLS certificate unverified");
         p1($d,'TlsOffered',              "Host offered TLS");
-        printf "=====\n\n";
+        printf "\n";
 
         p1($d,'PostfixStart',            "Postfix start");
         p1($d,'PostfixStop',             "Postfix stop");
@@ -1229,7 +1228,7 @@ override get_output => sub {
 
     if ( $self->print_details ){
         printf "***** Detailed ********************\n";
-        printf "Rejects\n=====\n";
+        printf "Rejects\n";
         p3($d,'RejectRelay',               "Reject relay denied");
         p3($d,'RejectHelo',                "Reject HELO/EHLO");
         p3($d,'RejectUnknownUser',         "Reject unknown user");
@@ -1247,7 +1246,7 @@ override get_output => sub {
         p3($d,'RejectConfigError',         "Reject server configuration error");
         p3($d,'RejectVerify',              "Reject VRFY");
 
-        printf "Temporary Rejects\n=====\n";
+        printf "Temporary Rejects\n";
         p3($d,'TempRejectRelay',               "4xx Reject relay denied");
         p3($d,'TempRejectHelo',                "4xx Reject HELO/EHLO");
         p3($d,'TempRejectUnknownUser',         "4xx Reject unknown user");
@@ -1265,7 +1264,7 @@ override get_output => sub {
         p3($d,'TempRejectConfigError',         "4xx Reject server configuration error");
         p3($d,'TempRejectVerify',              "4xx Reject VRFY");
 
-        printf "Reject with Warning\n=====\n";
+        printf "Reject with Warning\n";
         p3($d,'RejectWarnRelay',                "Reject warning relay denied");
         p3($d,'RejectWarnHelo',                 "Reject warning HELO/EHLO");
         p3($d,'RejectWarnUnknownUser',          "Reject warning unknown user");
@@ -1279,7 +1278,7 @@ override get_output => sub {
         p3($d,'RejectWarnConfigError',          "Reject warning server configuration error");
         p3($d,'RejectWarnVerify',               "Reject warning VRFY");
 
-        printf "Misc\n=====\n";
+        printf "Misc\n";
         p3($d,'ConnectionInbound',       "Connections made");
         p3($d,'ConnectionLost',          "Connections lost");
         p3($d,'Disconnection',           "Disconnections");

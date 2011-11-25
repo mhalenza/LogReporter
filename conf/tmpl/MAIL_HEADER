@@ -6,3 +6,4 @@ Date: {{ date.format(date.now, '%a, %d %b %Y %H:%M:%S %z') +}}
 Message-ID: <{{ date.format(date.now, 'lr.%S%M%H%d%m%Y') }}@li02.msk4.com>
 MIME-Version: 1.0
 Content-Type: text/html
+

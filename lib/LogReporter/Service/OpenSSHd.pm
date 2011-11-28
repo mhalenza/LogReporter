@@ -150,7 +150,8 @@ override get_output => sub {
     p1($d,'NetworkErrors','* Network I/O errors:');
     p1($d,'BindFailed','* Bind Failed:');
     
-    print "\nUsers logging in through ssh:\n";
+    print "\nUsers logging in through ssh:\n"
+      if scalar(keys %{ $d->{Users} }) > 0;
     foreach my $user ( sort grep { !/^XXX/ } keys %{ $d->{Users} } ){
         my $user_v = $d->{Users}{$user};
         printf "  %3d  %s\n", $user_v->{XXX}, $user;
@@ -165,7 +166,8 @@ override get_output => sub {
         }
     }
     
-    print "\nIllegal users from:\n";
+    print "\nIllegal users from:\n"
+      if scalar(keys %{ $d->{IllegalUsers} }) > 0;
     foreach my $host ( grep { !/^XXX/ } keys %{ $d->{IllegalUsers} } ){
         my $host_v = $d->{IllegalUsers}{$host};
         printf "  %3d  %s\n", $host_v->{XXX}, $host;
@@ -180,7 +182,8 @@ override get_output => sub {
         }
     }
     
-    print "\nFailed Logins through ssh:\n";
+    print "\nFailed Logins through ssh:\n"
+      if scalar(keys %{ $d->{FailedLogins} }) > 0;
     foreach my $user ( sort grep { !/^XXX/ } keys %{ $d->{FailedLogins} } ){
         my $user_v = $d->{FailedLogins}{$user};
         printf "  %3d  %s\n", $user_v->{XXX}, $user;
@@ -213,6 +216,7 @@ sub p1 {
     my ($d,$key,$header) = @_;
     return unless exists $d->{$key};
     return unless ref($d->{$key}) eq 'HASH';
+    return unless scalar(keys(%{$d->{$key}})) > 0;
     print "\n$header:\n";
     foreach my $ThisOne (sort keys %{ $d->{$key} }) {
         printf "  %s : %d Time(s)\n", $ThisOne, $d->{$key}{$ThisOne};

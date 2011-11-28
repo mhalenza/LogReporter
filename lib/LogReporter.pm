@@ -81,6 +81,7 @@ sub _setup_sources {
             name => $src_name,
             files => $files,
             filters => $filters,
+            master => $self,
         );
         
         $self->_all_sources->{$src_name} = $src_obj;
@@ -118,6 +119,7 @@ sub _setup_services {
             name => $svc_name,
             sources => $src_objs,
             filters => $filters,
+            master => $self,
             %$svc_config,
         );
         

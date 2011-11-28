@@ -25,6 +25,12 @@ has 'filters' => (
     required => 1,
 );
 
+has 'master' => (
+    is => 'ro',
+    isa => 'LogReporter',
+    required => 1,
+);
+
 sub init {
     my ($self) = @_;
     foreach my $source (@{ $self->sources }){

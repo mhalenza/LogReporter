@@ -30,6 +30,12 @@ has '_services' => (
     },
 );
 
+has 'master' => (
+    is => 'ro',
+    isa => 'LogReporter',
+    required => 1,
+);
+
 
 sub register_service {
     my ($self, $service) = @_;

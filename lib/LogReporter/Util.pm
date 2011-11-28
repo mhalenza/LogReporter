@@ -35,6 +35,7 @@ sub canonical_ipv6_address {
 }
 
 sub SortIP {
+    no warnings;
     # $a & $b are in the caller's namespace.
     my $package = (caller)[0];
     no strict 'refs'; # Back off, man. I'm a scientist.
@@ -103,14 +104,14 @@ sub schwartzn(&@) {
 sub schwerz(&@) {
     my $xfm = shift;
     return  map { $_->[0] }
-            reverse sort { $a->[1] cmp $b->[1] }
+            sort { $b->[1] cmp $a->[1] }
             map { [$_, $xfm->($_) ] }
                 @_;
 }
 sub schwerzn(&@) {
     my $xfm = shift;
     return  map { $_->[0] }
-            reverse sort { $a->[1] <=> $b->[1] }
+            sort { $b->[1] <=> $a->[1] }
             map { [$_, $xfm->($_) ] }
                 @_;
 }

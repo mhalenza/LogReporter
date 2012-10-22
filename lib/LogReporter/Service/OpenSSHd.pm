@@ -219,7 +219,7 @@ sub p1 {
     return unless scalar(keys(%{$d->{$key}})) > 0;
     print "\n$header:\n";
     foreach my $ThisOne (sort keys %{ $d->{$key} }) {
-        printf "  %s : %d Time(s)\n", $ThisOne, $d->{$key}{$ThisOne};
+        printf "  %3d  %s\n", $d->{$key}{$ThisOne}, $ThisOne;
     }
 }
 

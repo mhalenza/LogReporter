@@ -1365,9 +1365,11 @@ sub printTree {
     my ($indent,$depth,$root) = @_;
     foreach my $key ( sort keys %{ $root } ){
         next if $key =~ /^XXX/;
-        printf "%s%3d  %s%s\n",$indent,$root->{XXX_total},"  "x$depth,$key;
         if ( ref($root->{$key}) ){
+            printf "%s%3d  %s%s\n",$indent,$root->{$key}->{XXX_total},"  "x$depth,$key;
             printTree($indent,$depth+1,$root->{$key});
+        } else {
+            printf "%s%3d  %s%s\n",$indent,$root->{$key},"  "x$depth,$key;
         }
     }
 }
